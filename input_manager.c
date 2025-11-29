@@ -10,10 +10,20 @@
 #include<fcntl.h>
 #include<ncurses.h>
 
-int main(){
+int main(int argc, char* argv[]){
+    /*
     char* myfifo = "/tmp/myfifoFromIToD";
     mkfifo(myfifo, 0666);
     int fd;
+    */
+
+    if(argc < 2){
+        fprintf(stderr,"No arguments passed to input manager\n");
+        exit(EXIT_FAILURE);
+    }
+
+    int fd_key = atoi(argv[1]);
+
     int x, y;
 
     char input_key = 'o';
@@ -32,6 +42,7 @@ int main(){
     mvprintw(y/2+1, x/2, "c");
     refresh();
 
+    /*
     fd = open(myfifo, O_WRONLY);
     if(fd < 0){
         // Careful executing this process before drone, beacuse it will return instantly,
@@ -42,20 +53,21 @@ int main(){
         perror("open");
         return 0;
     }
+        */
 
     while(1){
         input_key = getch();
         refresh();
         if(input_key == 'w' || input_key == 'e' || input_key == 'r' || input_key == 's'|| input_key == 'd' || 
             input_key == 'f' || input_key == 'x' || input_key == 'c' || input_key == 'v' || input_key == 'q'){
-                write(fd, &input_key,1);
+                write(fd_key, &input_key,1);
                 if(input_key == 'q')
                     exit(EXIT_SUCCESS);
             }
         refresh();
     }   
 
-    close(fd);
+    close(fd_key);
 
     getch();
     endwin();

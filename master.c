@@ -12,7 +12,7 @@ static void spawn(const char *prog, char *const argv[]) {
     if (pid < 0) { perror("fork"); exit(EXIT_FAILURE); }
     if (pid == 0) {
         execvp(prog, argv);
-        perror("execlp"); 
+        perror("execvp"); 
         exit(EXIT_FAILURE);
     }
 }
@@ -34,7 +34,7 @@ int main(){
     snprintf(argb1, sizeof argb1, "%d", pipe_D_to_B_Req[0]); // read requests from drone
     snprintf(argb2, sizeof argb2, "%d", pipe_D_to_B_NPos[0]); // read new positions from drone
     snprintf(argb3, sizeof argb3, "%d", pipe_B_to_D_Pos[1]); // write replies to drone
-    char *args_blackboard[] = { "konsole", "--hold", "-e", "./blackboard", argb1, argb2, argb3, NULL };
+    char *args_blackboard[] = { "konsole", "-e", "./blackboard", argb1, argb2, argb3, NULL };
     spawn(args_blackboard[0], args_blackboard);
 
     // ---------- spawn drone ----------
@@ -43,13 +43,13 @@ int main(){
     snprintf(argd2, sizeof argd2, "%d", pipe_D_to_B_NPos[1]); // writes new positions to blackboard
     snprintf(argd3, sizeof argd3, "%d", pipe_B_to_D_Pos[0]); // reads replies from blackboard
     snprintf(argd4, sizeof argd4, "%d", pipe_I_to_D[0]); // reads commands from input_manager
-    char *args_drone[] = { "konsole", "--hold", "-e", "./drone", argd1, argd2, argd3, argd4, NULL };
+    char *args_drone[] = { "konsole", "-e", "./drone", argd1, argd2, argd3, argd4, NULL };
     spawn(args_drone[0], args_drone);
 
     // ---------- spawn input_manager ----------
     char argi1[32];
     snprintf(argi1, sizeof argi1, "%d", pipe_I_to_D[1]); // writes commands to drone
-    char *args_input_manager[] = { "konsole", "--hold", "-e", "./input_manager", argi1, NULL };
+    char *args_input_manager[] = { "konsole", "-e", "./input_manager", argi1, NULL };
     spawn(args_input_manager[0], args_input_manager);
 
     // Closing all pipes
@@ -57,39 +57,5 @@ int main(){
     close(pipe_D_to_B_Req[0]); close(pipe_D_to_B_Req[1]);
     close(pipe_B_to_D_Pos[0]); close(pipe_B_to_D_Pos[1]);
     close(pipe_D_to_B_NPos[0]); close(pipe_D_to_B_NPos[1]);
-
-    /*
-    char* arg_list1[] = {"konsole", "-e", "./blackboard", NULL};
-    char* arg_list2[] = {"konsole", "-e", "./drone", NULL};
-    char* arg_list3[] = {"konsole", "-e", "./input_manager", NULL};
-
-    pid_t child1 = fork();
-    if(child1 < 0){
-        perror("fork1");
-        exit(EXIT_FAILURE);
-    }
-    if(child1 == 0){
-        execvp(arg_list1[0], arg_list1);
-    }
-
-    pid_t child2 = fork();
-    if(child2 < 0){
-        perror("fork2");
-        exit(EXIT_FAILURE);
-    }
-    if(child2 == 0){
-        execvp(arg_list2[0], arg_list2);
-    }
-
-    pid_t child3 = fork();
-    if(child3 < 0){
-        perror("fork3");
-        exit(EXIT_FAILURE);
-    }
-    if(child3 == 0){
-        execvp(arg_list3[0], arg_list3);
-    }
-    */
-
     return 0;
 }
