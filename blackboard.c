@@ -183,9 +183,10 @@ int main(int argc, char* argv[]) {
             // If drone is asking for position it wants to move, thus reading on fd3
             while(1){
                 read(fd_npos,&drone_msg,sizeof(drone_msg)); // Receiving new position
-                if(drone_msg.type == MSG_STOP/*output_string[0] == 's'*/)
+                if(drone_msg.type == MSG_STOP || drone_msg.type == MSG_NAN){
                     break;
-                if(drone_msg.type == MSG_QUIT/*output_string[0] == 'q'*/)
+                }
+                if(drone_msg.type == MSG_QUIT)
                     exit(EXIT_SUCCESS);
                 mvwaddch(win,positions.drone_y,positions.drone_x,' ');
                 if(drone_msg.new_drone_y >= H-2)
