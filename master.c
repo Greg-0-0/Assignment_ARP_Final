@@ -23,18 +23,23 @@ int main(){
     int pipe_D_to_B_Req[2];
     int pipe_B_to_D_Pos[2];
     int pipe_D_to_B_NPos[2];
+    int pipe_O_to_B[2];
+    int pipe_B_to_O[2];
 
-    if(pipe(pipe_I_to_D) < 0 || pipe(pipe_D_to_B_Req) < 0 || pipe(pipe_B_to_D_Pos) < 0 || pipe(pipe_D_to_B_NPos) < 0){
+    if(pipe(pipe_I_to_D) < 0 || pipe(pipe_D_to_B_Req) < 0 || pipe(pipe_B_to_D_Pos) < 0 ||
+        pipe(pipe_D_to_B_NPos) < 0 || pipe(pipe_O_to_B) < 0 || pipe(pipe_B_to_O)){
         perror("pipe");
         exit(EXIT_FAILURE);
     }
 
     // ---------- spawn blackboard ----------
-    char argb1[32], argb2[32], argb3[32];
+    char argb1[32], argb2[32], argb3[32], argb4[32], argb5[32];
     snprintf(argb1, sizeof argb1, "%d", pipe_D_to_B_Req[0]); // read requests from drone
     snprintf(argb2, sizeof argb2, "%d", pipe_D_to_B_NPos[0]); // read new positions from drone
-    snprintf(argb3, sizeof argb3, "%d", pipe_B_to_D_Pos[1]); // write replies to drone
-    char *args_blackboard[] = { "konsole", "-e", "./blackboard", argb1, argb2, argb3, NULL };
+    snprintf(argb3, sizeof argb3, "%d", pipe_B_to_D_Pos[1]); // replies to drone
+    snprintf(argb4, sizeof argb4, "%d", pipe_B_to_O[1]); // writes positions to obstacles
+    snprintf(argb5, sizeof argb5, "%d", pipe_O_to_B[0]); // reads positions from obstacles
+    char *args_blackboard[] = { "konsole", "-e", "./blackboard", argb1, argb2, argb3, argb4, argb5, NULL };
     spawn(args_blackboard[0], args_blackboard);
 
     // ---------- spawn drone ----------
@@ -52,10 +57,19 @@ int main(){
     char *args_input_manager[] = { "konsole", "-e", "./input_manager", argi1, NULL };
     spawn(args_input_manager[0], args_input_manager);
 
+    // ---------- spawn obstacles ----------
+    char argo1[32], argo2[32];
+    snprintf(argo1, sizeof argo1, "%d", pipe_B_to_O[0]); // reads positions from blackboard
+    snprintf(argo2, sizeof argo2, "%d", pipe_O_to_B[1]); // writes positions to blackboard
+    char *args_obstacles[] = { "konsole", "-e", "./obstacles", argo1, argo2, NULL };
+    spawn(args_obstacles[0], args_obstacles);
+
     // Closing all pipes
     close(pipe_I_to_D[0]); close(pipe_I_to_D[1]);
     close(pipe_D_to_B_Req[0]); close(pipe_D_to_B_Req[1]);
     close(pipe_B_to_D_Pos[0]); close(pipe_B_to_D_Pos[1]);
     close(pipe_D_to_B_NPos[0]); close(pipe_D_to_B_NPos[1]);
+    close(pipe_B_to_O[0]); close(pipe_B_to_O[1]);
+    close(pipe_O_to_B[0]); close(pipe_O_to_B[1]);
     return 0;
 }

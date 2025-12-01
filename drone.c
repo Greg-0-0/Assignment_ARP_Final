@@ -12,6 +12,8 @@
 #include<time.h>
 #include<sys/select.h>
 
+#define N_OBS 10
+
 typedef enum{
     MSG_QUIT = 0,
     MSG_POS = 1,
@@ -32,6 +34,7 @@ typedef struct{
     int drone_x;
     int border_y;
     int border_x;
+    int obstacles[N_OBS][2];
 } BlackboardMsg;
 
 void sleep_ms(long ms) {

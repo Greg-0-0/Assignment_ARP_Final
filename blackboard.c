@@ -12,6 +12,8 @@
 #include<ncurses.h>
 #include <locale.h>
 
+#define N_OBS 10
+
 typedef enum{
     MSG_QUIT = 0,
     MSG_POS = 1,
@@ -27,12 +29,13 @@ typedef struct{
 } DroneMsg;
 
 typedef struct{
-    MsgType type;
-    int drone_y;
-    int drone_x;
-    int border_y;
-    int border_x;
-} BlackboardMsg;
+        MsgType type;
+        int drone_y;
+        int drone_x;
+        int border_y;
+        int border_x;
+        int obstacles[N_OBS][2];
+    } BlackboardMsg;
 
 void draw_rect(WINDOW *win, int y, int x, int h, int w, int color_pair)
 {
@@ -104,9 +107,12 @@ int main(int argc, char* argv[]) {
 
     int fd_req = atoi(argv[1]); // Receives request of new position from drone, non blocking otherwise it would block resize of window
     int fd_npos = atoi(argv[2]);
-    int fd_pos = atoi(argv[3]);// Used to send current drone position, obstacle positions and borders position to drone
+    int fd_pos = atoi(argv[3]); // Used to send current drone position, obstacle positions and borders position to drone
     // Receives new position of drone from drone (movement), can be blocking, since we are waiting for a new position, 
     // after pressing a key, and realistically we wouldn't choose to resize window at that moment
+    int fd_npos_to_o = atoi(argv[4]); // Writes new drone position and borders to obstacle after resizing
+    int fd_nobs = atoi(argv[5]); // Reads new obstacle positions
+    int H, W;
 
     // Make reads from fd_req and fd_npos not blocking
     int flags = fcntl(fd_req, F_GETFL, 0);
@@ -129,8 +135,6 @@ int main(int argc, char* argv[]) {
         perror("fnctl F_SETFL");
     }
 
-    int H, W;
-
     BlackboardMsg positions; positions.border_x = 0; positions.border_y = 0;
            positions.drone_x = 0; positions.drone_y = 0; positions.type = MSG_POS;
     DroneMsg drone_msg; drone_msg.type = MSG_NAN;
@@ -151,15 +155,20 @@ int main(int argc, char* argv[]) {
     // Initial drone position
     positions.drone_y = H/2; // y
     positions.drone_x = W/2; // x
-    
-    
-
-    refresh();
 
     // Saving borders value
     positions.border_y = H-7;
     positions.border_x = W-7;
+
+    refresh();
     
+    write(fd_npos_to_o,&positions,sizeof(positions));
+    read(fd_nobs,&positions,sizeof(positions));
+
+    for(int i = 0;i<N_OBS;i++){
+        mvwprintw(win,positions.obstacles[i][0],positions.obstacles[i][1],"o");
+        wrefresh(win);
+    }
     
     while (1) {
         if (getch() == KEY_RESIZE) {
@@ -175,6 +184,15 @@ int main(int argc, char* argv[]) {
             // Updating borders (margins of 5 pixels)
             positions.border_y = H-7;
             positions.border_x = W-7;
+
+            write(fd_npos_to_o,&positions,sizeof(positions));
+            read(fd_nobs,&positions,sizeof(positions));
+
+            for(int i = 0;i<N_OBS;i++){
+                mvwprintw(win,positions.obstacles[i][0],positions.obstacles[i][1],"o");
+                wrefresh(win);
+            }
+
         }
         read(fd_req, &drone_msg, sizeof(drone_msg)); // Checks for position request from drone (non blocking)
         if(drone_msg.type == MSG_POS){
