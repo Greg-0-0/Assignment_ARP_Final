@@ -92,6 +92,8 @@ static void layout_and_draw(WINDOW *win) {
     // Spawn drone
     mvwprintw(win,H/2,W/2,"+");
 
+    mvwprintw(win,H/2+4,W/2+20,"pos: %d,%d", H-7, W-7);
+
     refresh();
     wrefresh(win);
 
@@ -100,7 +102,7 @@ static void layout_and_draw(WINDOW *win) {
 
 int main(int argc, char* argv[]) {
 
-    if(argc < 4){
+    if(argc < 6){
         fprintf(stderr,"No arguments passed to blackboard\n");
         exit(EXIT_FAILURE);
     }
@@ -161,6 +163,7 @@ int main(int argc, char* argv[]) {
     positions.border_x = W-7;
 
     refresh();
+    wrefresh(win);
     
     write(fd_npos_to_o,&positions,sizeof(positions));
     read(fd_nobs,&positions,sizeof(positions));
@@ -185,8 +188,11 @@ int main(int argc, char* argv[]) {
             positions.border_y = H-7;
             positions.border_x = W-7;
 
+            int temp = positions.type;
+            positions.type = MSG_POS;
             write(fd_npos_to_o,&positions,sizeof(positions));
             read(fd_nobs,&positions,sizeof(positions));
+            positions.type = temp;
 
             for(int i = 0;i<N_OBS;i++){
                 mvwprintw(win,positions.obstacles[i][0],positions.obstacles[i][1],"o");
@@ -204,8 +210,11 @@ int main(int argc, char* argv[]) {
                 if(drone_msg.type == MSG_STOP || drone_msg.type == MSG_NAN){
                     break;
                 }
-                if(drone_msg.type == MSG_QUIT)
+                if(drone_msg.type == MSG_QUIT){
+                    positions.type = MSG_QUIT;
+                    write(fd_npos_to_o,&positions,sizeof(positions));
                     exit(EXIT_SUCCESS);
+                }
                 mvwaddch(win,positions.drone_y,positions.drone_x,' ');
                 if(drone_msg.new_drone_y >= H-2)
                     drone_msg.new_drone_y= H-2;
@@ -222,6 +231,8 @@ int main(int argc, char* argv[]) {
             }
         }
         else if(drone_msg.type == MSG_QUIT){
+            positions.type = MSG_QUIT;
+            write(fd_npos_to_o,&positions,sizeof(positions));
             exit(EXIT_SUCCESS);
         }
         wrefresh(win);

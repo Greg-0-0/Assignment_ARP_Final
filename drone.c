@@ -58,8 +58,69 @@ void drain_pipe(int fd) {
     fcntl(fd, F_SETFL, flags);
 }
 
-void move_drone(int fd_key, int fd_npos,DroneMsg* drone_msg, int next_drone_pos[2],double force_x, double force_y,
-       double max_force, double oblique_force_comp, double M, double K, double T, int borders[], char last_valid_key){
+void compute_repulsive_forces(int fd_npos,DroneMsg* drone_msg, double* force_x, double* force_y, double max_force,
+    double M, double K, double T, int obstacles[N_OBS][2], int ro, double loop_prev_drone_pos[2],double loop_curr_drone_pos[2],
+    double loop_next_drone_pos[2], int previous_drone_pos[2], int next_drone_pos[2], double* temp_x, double* temp_y){
+    
+    int distance = -1;
+    // Computing ditances among drone and obstacles too see if in range
+    for(int i = 0;i<N_OBS;i++){
+        distance = sqrt(pow(drone_msg->new_drone_y - obstacles[i][0],2)+pow(drone_msg->new_drone_x - obstacles[i][1],2));
+        if(distance <= ro){ // ro = 5
+            // Drone is inside the obstacle repulsive area
+            int obs_y_wrt_d = drone_msg->new_drone_y - obstacles[i][0];
+            int obs_x_wrt_d = drone_msg->new_drone_x - obstacles[i][1];
+            double angle = atan2(obs_y_wrt_d,obs_x_wrt_d);
+            if(distance > (ro - ro*50/100)){
+                // First area of repulsion
+                *force_y = *force_y + (1)*sin(angle);
+                *force_x = *force_x + (1)*cos(angle);
+            }
+            else if(distance > (ro - ro*75/100)){
+                // Second area of repulsion
+                *force_y = *force_y + max_force*sin(angle);
+                *force_x = *force_x + max_force*cos(angle);
+            }
+            else {
+                // Third area of repulsion
+                *force_y = *force_y + (max_force*2)*sin(angle);
+                *force_x = *force_x + (max_force*2)*cos(angle);
+            }
+
+            // Along x axis
+            *temp_x = *force_x - (M/(T*T)*(loop_prev_drone_pos[1]-2*loop_curr_drone_pos[1])) + 
+                    loop_curr_drone_pos[1]*(K/T);
+            loop_next_drone_pos[1] = *temp_x/((M/(T*T))+(K/T));
+
+            loop_prev_drone_pos[1] = loop_curr_drone_pos[1];
+            loop_curr_drone_pos[1] = loop_next_drone_pos[1];
+
+            next_drone_pos[1] = (int)round(loop_next_drone_pos[1]);
+
+            previous_drone_pos[1] = drone_msg->new_drone_x;
+            drone_msg->new_drone_x = next_drone_pos[1];
+
+            // Along y axis
+            *temp_y = *force_y - (M/(T*T)*(loop_prev_drone_pos[0]-2*loop_curr_drone_pos[0])) + 
+                    loop_curr_drone_pos[0]*(K/T);
+            loop_next_drone_pos[0] = *temp_y/((M/(T*T))+(K/T));
+
+            loop_prev_drone_pos[0] = loop_curr_drone_pos[0];
+            loop_curr_drone_pos[0] = loop_next_drone_pos[0];
+
+            next_drone_pos[0] = (int)round(loop_next_drone_pos[0]);
+
+            previous_drone_pos[0] = drone_msg->new_drone_y;
+            drone_msg->new_drone_y = next_drone_pos[0];
+
+            // New position is sent to blackboard for graphical update
+            write(fd_npos,drone_msg,sizeof(*drone_msg));
+        }
+    }
+}
+
+void move_drone(int fd_key, int fd_npos,DroneMsg* drone_msg, int next_drone_pos[2],double force_x, double force_y, double max_force, 
+       double oblique_force_comp, double M, double K, double T, int borders[], char last_valid_key, int obstacles[N_OBS][2], int ro){
 
     fd_set rfds;
     struct timeval tv;
@@ -163,6 +224,10 @@ void move_drone(int fd_key, int fd_npos,DroneMsg* drone_msg, int next_drone_pos[
         // New position is sent to blackboard for graphical update
         write(fd_npos,drone_msg,sizeof(*drone_msg));
 
+        compute_repulsive_forces(fd_npos,drone_msg,&force_x,&force_y,max_force,M,K,T,obstacles,ro,
+            loop_prev_drone_pos,loop_curr_drone_pos,loop_next_drone_pos, previous_drone_pos,next_drone_pos,
+            &temp_x, &temp_y);
+
         // Checking if drone is within 5 pixels from the border
         while(drone_msg->new_drone_y <= 6 || drone_msg->new_drone_x <= 6 || 
             drone_msg->new_drone_y >= borders[0] || drone_msg->new_drone_x >= borders[1]){
@@ -170,9 +235,6 @@ void move_drone(int fd_key, int fd_npos,DroneMsg* drone_msg, int next_drone_pos[
             is_on_border = 1;
             control = 0;
             delay = 150;
-
-            printf("assinging last %c\n",last_valid_key);
-            //received_key = last_valid_key;
 
             switch (received_key)
             {
@@ -388,6 +450,9 @@ void move_drone(int fd_key, int fd_npos,DroneMsg* drone_msg, int next_drone_pos[
             // New position is sent to blackboard for graphical update
             write(fd_npos,drone_msg,sizeof(*drone_msg));
 
+            //compute_repulsive_forces(fd_npos,drone_msg,&force_x,&force_y,max_force,M,K,T,obstacles,ro,loop_prev_drone_pos,
+            //    loop_curr_drone_pos,loop_next_drone_pos, previous_drone_pos,next_drone_pos,&temp_x, &temp_y);
+
             sleep_ms(delay);
 
             control++;
@@ -431,6 +496,9 @@ void move_drone(int fd_key, int fd_npos,DroneMsg* drone_msg, int next_drone_pos[
             // New position is sent to blackboard for graphical update
             write(fd_npos,drone_msg,sizeof(*drone_msg));
 
+            //compute_repulsive_forces(fd_npos,drone_msg,&force_x,&force_y,max_force,M,K,T,obstacles,ro,loop_prev_drone_pos,
+            //    loop_curr_drone_pos,loop_next_drone_pos, previous_drone_pos,next_drone_pos,&temp_x, &temp_y);
+
             sleep_ms(delay);
 
             control++;
@@ -473,7 +541,7 @@ void move_drone(int fd_key, int fd_npos,DroneMsg* drone_msg, int next_drone_pos[
 
 int main(int argc, char* argv[]){
 
-    if(argc < 4){
+    if(argc < 5){
         fprintf(stderr,"No arguments passed to drone\n");
         exit(EXIT_FAILURE);
     }
@@ -487,6 +555,7 @@ int main(int argc, char* argv[]){
     char stop_char = '-';
     int next_drone_position[2] = {0,0};
     int borders[2] = {0,0};
+    int obstacles[N_OBS][2];
     double max_applied_force = 2.55;
     double force_on_x = 0.0;
     double force_on_y = 0.0;
@@ -494,6 +563,7 @@ int main(int argc, char* argv[]){
     const double M = 1.0;
     const double K = 1.0;
     const double T = 1;
+    const int ro = 5;
 
     BlackboardMsg blackboard_msg;
     DroneMsg drone_msg; drone_msg.type = MSG_NAN;
@@ -511,6 +581,10 @@ int main(int argc, char* argv[]){
                 drone_msg.type = MSG_POS;
                 write(fd_req, &drone_msg, sizeof(drone_msg)); // Requests drone, obstacles and borders positions
                 read(fd_pos, &blackboard_msg, sizeof(blackboard_msg)); // Receives positions
+                for(int i = 0;i<N_OBS;i++){
+                    obstacles[i][0] = blackboard_msg.obstacles[i][0];
+                    obstacles[i][1] = blackboard_msg.obstacles[i][1];
+                }
                 drone_msg.new_drone_y = blackboard_msg.drone_y;
                 drone_msg.new_drone_x = blackboard_msg.drone_x;
                 borders[0] = blackboard_msg.border_y;
@@ -520,43 +594,43 @@ int main(int argc, char* argv[]){
                 {
                     // Updating drone position using Euler's method
                 case 'f': force_on_x = max_applied_force; force_on_y = 0.0;
-                        move_drone(fd_key,fd_npos,&drone_msg,next_drone_position,force_on_x,
-                        force_on_y,max_applied_force,oblique_force_comp,M,K,T,borders,'f');
+                        move_drone(fd_key,fd_npos,&drone_msg,next_drone_position,force_on_x,force_on_y,
+                        max_applied_force,oblique_force_comp,M,K,T,borders,'f',obstacles, ro);
                     // Drone goes to the left (x changes)
                     break;
                 case 's': force_on_x = -max_applied_force; force_on_y = 0.0;
-                        move_drone(fd_key,fd_npos,&drone_msg,next_drone_position,force_on_x,
-                        force_on_y,max_applied_force,oblique_force_comp,M,K,T,borders,'s');
+                        move_drone(fd_key,fd_npos,&drone_msg,next_drone_position,force_on_x,force_on_y,
+                        max_applied_force,oblique_force_comp,M,K,T,borders,'s',obstacles, ro);
                     // Drone goes to the left (x changes)
                     break;
                 case 'e': force_on_x = 0.0; force_on_y = -max_applied_force;
-                        move_drone(fd_key,fd_npos,&drone_msg,next_drone_position,force_on_x,
-                        force_on_y,max_applied_force,oblique_force_comp,M,K,T,borders,'e');
+                        move_drone(fd_key,fd_npos,&drone_msg,next_drone_position,force_on_x,force_on_y,
+                        max_applied_force,oblique_force_comp,M,K,T,borders,'e',obstacles, ro);
                     // Drone goes up (y changes)
                     break;
                 case 'c': force_on_x = 0.0; force_on_y = max_applied_force;
-                        move_drone(fd_key,fd_npos,&drone_msg,next_drone_position,force_on_x,
-                        force_on_y,max_applied_force,oblique_force_comp,M,K,T,borders,'c');
+                        move_drone(fd_key,fd_npos,&drone_msg,next_drone_position,force_on_x,force_on_y,
+                        max_applied_force,oblique_force_comp,M,K,T,borders,'c',obstacles, ro);
                     // Drone goes down (y changes)
                     break;
                 case 'w': force_on_x = -oblique_force_comp; force_on_y = -oblique_force_comp;
-                        move_drone(fd_key,fd_npos,&drone_msg,next_drone_position,force_on_x,
-                        force_on_y,max_applied_force,oblique_force_comp,M,K,T,borders,'w');
+                        move_drone(fd_key,fd_npos,&drone_msg,next_drone_position,force_on_x,force_on_y,
+                        max_applied_force,oblique_force_comp,M,K,T,borders,'w',obstacles, ro);
                     // Drone goes to left/up
                     break;
                 case 'r': force_on_x = oblique_force_comp; force_on_y = -oblique_force_comp;
-                        move_drone(fd_key,fd_npos,&drone_msg,next_drone_position,force_on_x,
-                        force_on_y,max_applied_force,oblique_force_comp,M,K,T,borders,'r');
+                        move_drone(fd_key,fd_npos,&drone_msg,next_drone_position,force_on_x,force_on_y,
+                        max_applied_force,oblique_force_comp,M,K,T,borders,'r',obstacles, ro);
                     // Drone goes right/up
                     break;
                 case 'x': force_on_x = -oblique_force_comp; force_on_y = oblique_force_comp;
-                        move_drone(fd_key,fd_npos,&drone_msg,next_drone_position,force_on_x,
-                        force_on_y,max_applied_force,oblique_force_comp,M,K,T,borders,'x');
+                        move_drone(fd_key,fd_npos,&drone_msg,next_drone_position,force_on_x,force_on_y,
+                        max_applied_force,oblique_force_comp,M,K,T,borders,'x',obstacles, ro);
                     // Drone goes left/down
                     break;
                 case 'v': force_on_x = oblique_force_comp; force_on_y = oblique_force_comp;
-                        move_drone(fd_key,fd_npos,&drone_msg,next_drone_position,force_on_x,
-                        force_on_y,max_applied_force,oblique_force_comp,M,K,T,borders,'v');
+                        move_drone(fd_key,fd_npos,&drone_msg,next_drone_position,force_on_x,force_on_y,
+                        max_applied_force,oblique_force_comp,M,K,T,borders,'v',obstacles, ro);
                     // Drone goes right/down
                     break;
                 case 'q':
