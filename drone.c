@@ -11,6 +11,7 @@
 #include<math.h>
 #include<time.h>
 #include<sys/select.h>
+#include <ctype.h>
 
 #define N_OBS 10
 
@@ -36,6 +37,94 @@ typedef struct{
     int border_x;
     int obstacles[N_OBS][2];
 } BlackboardMsg;
+
+// Scanning a string to remove its white spaces
+static char* remove_white_space(char* string){
+    while (isspace((unsigned char)*string))
+        string++;
+    if(*string == 0)
+        return string;
+    
+    char* end = string + strlen(string) - 1;
+    while(end > string && isspace((unsigned char)* end))
+        end--;
+    end[1] = '\0';
+    return string;
+}
+
+// Copying parameter values on local variables
+int load_parameters(const char* filename, double* drone_mass, double* air_resistance, double* integr_inter, int* rep_radius, double* max_force){
+    FILE* file = fopen(filename, "r");
+    if(!file){
+        perror("file open");
+        exit(EXIT_FAILURE);
+    }
+
+    char line[250];
+
+    // Reading file line by line
+    while(fgets(line,sizeof(line), file)){
+        
+        // Removing white spaces
+        char* trimmed_line = remove_white_space(line);
+
+        // Skipping comments and empty lines
+        if(*trimmed_line == '#' || *trimmed_line == '\0')
+            continue;
+        
+        char key[128];
+        char value[128];
+
+        // Parsing "KEY = VALUE" line format using key and values with a length up to 127 characters
+        if(sscanf(trimmed_line, "%127[^=]=%127s", key, value) == 2){
+            char* k = remove_white_space(key);
+            char* v = remove_white_space(value);
+
+            // Matching keys
+            if(strcmp(k,"DRONE_MASS") == 0){
+                *drone_mass = atoi(v);
+                if(v < 0){
+                    printf("Invalid mass value\n");
+                    return -1;
+                }
+            }
+            else if(strcmp(k,"AIR_RESISTANCE") == 0){
+                *air_resistance = atoi(v);
+                if(v < 0){
+                    printf("Invalid air resistance value\n");
+                    return -1;
+                }
+            }
+            else if(strcmp(k,"INTEGRATION_INTERVAL") == 0){
+                *integr_inter = atoi(v);
+                if(v < 0){
+                    printf("Invalid integration interval\n");
+                    return -1;
+                }
+            }
+            else if(strcmp(k,"REPULSIVE_RADIUS") == 0){
+                *rep_radius = atoi(v);
+                if(v < 0){
+                    printf("Invalid repulsive radius\n");
+                    return -1;
+                }
+            }
+            else if(strcmp(k,"MAX_APPLIED_FORCE") == 0){
+                *max_force = atoi(v);
+                if(v < 0){
+                    printf("Invalid maximum force value\n");
+                    return -1;
+                }
+            }
+            else{
+                printf("Error: unknown parameter -> %s\n", k);
+                return -1;
+            }
+        }
+    }
+    fclose(file);
+    return 0;
+}
 
 void sleep_ms(long ms) {
     struct timespec ts;
@@ -556,14 +645,17 @@ int main(int argc, char* argv[]){
     int next_drone_position[2] = {0,0};
     int borders[2] = {0,0};
     int obstacles[N_OBS][2];
-    double max_applied_force = 2.55;
     double force_on_x = 0.0;
     double force_on_y = 0.0;
+    double max_applied_force;
+    double M;
+    double K;
+    double T;
+    int ro;
+
+    load_parameters("parameters.txt",&M,&K,&T,&ro,&max_applied_force);
+
     double oblique_force_comp = (sqrt(2)/2)*max_applied_force;
-    const double M = 1.0;
-    const double K = 1.0;
-    const double T = 1;
-    const int ro = 5;
 
     BlackboardMsg blackboard_msg;
     DroneMsg drone_msg; drone_msg.type = MSG_NAN;

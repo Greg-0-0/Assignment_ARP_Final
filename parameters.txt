@@ -1,0 +1,7 @@
+# --------------- This is the parameters file ---------------
+# The values can be freely choosen (with some considerations), but avoid changing the identifiers, otherwise parsing won't work properly anymore.
+DRONE_MASS = 1.0 # kilograms
+AIR_RESISTANCE = 1.0 
+INTEGRATION_INTERVAL = 1.0 # sampling frequence of positions to compute forces
+REPULSIVE_RADIUS = 5 # maximum distance from obstacles within which repulsive forces take effect (pixels)
+MAX_APPLIED_FORCE = 2.55 # maximum force magnitude for a single impulse 
