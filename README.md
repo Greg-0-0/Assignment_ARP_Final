@@ -1,8 +1,6 @@
-# ---------------------------------------------------------------------------------------------------
-#                                                                                                   
-# ========================== 1st ASSIGNMENT for ADVANCED ROBOT PROGRAMMING ==========================
-#                                                                                                    
-# ---------------------------------------------------------------------------------------------------
+                                                                                                 
+# # 1st ASSIGNMENT for ADVANCED ROBOT PROGRAMMING 
+
 
 
 This project implements a multi-process application where a master process runs multiple subprocesses to carry out various tasks.
