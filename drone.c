@@ -318,6 +318,7 @@ void move_drone(int fd_key, int fd_npos,DroneMsg* drone_msg, int next_drone_pos[
             &temp_x, &temp_y);
 
         // Checking if drone is within 5 pixels from the border
+        // while(drone_msg->new_drone_y <= 6 || drone_msg->new_drone_x <= 6 || 
         while(drone_msg->new_drone_y <= 6 || drone_msg->new_drone_x <= 6 || 
             drone_msg->new_drone_y >= borders[0] || drone_msg->new_drone_x >= borders[1]){
             printf("border\n");
@@ -325,189 +326,49 @@ void move_drone(int fd_key, int fd_npos,DroneMsg* drone_msg, int next_drone_pos[
             control = 0;
             delay = 150;
 
-            switch (received_key)
-            {
-            case 'f': 
-                printf("applying new key s\n");
-                printf("x pos %d\n",drone_msg->new_drone_x);
-                printf("y pos %d\n",drone_msg->new_drone_y);
-                artifcial_key = 's'; 
-                if((drone_msg->new_drone_x >= borders[1]) && (drone_msg->new_drone_x < (borders[1]+2)))
-                    force_x = force_x - (max_force/2); 
-                else if((drone_msg->new_drone_x >= (borders[1]+2)) && (drone_msg->new_drone_x < (borders[1]+4)))
-                    force_x = force_x - max_force - 1;
-                else
-                    force_x = force_x - (2*max_force) - 1;
-                break;
-            case 's': 
-                artifcial_key = 'f';
-                if((drone_msg->new_drone_x <= 6) && (drone_msg->new_drone_x > 4))
-                    force_x = force_x + (max_force/2);
-                else if((drone_msg->new_drone_x <= 4) && (drone_msg->new_drone_x > 2))
-                    force_x = force_x + max_force + 1;
-                else
-                    force_x = force_x + (2*max_force) + 1;
-                break;
-            case 'e': artifcial_key = 'c'; 
-                if((drone_msg->new_drone_y <= 6) && (drone_msg->new_drone_y > 4))
-                    force_y = force_y + (max_force/2);
-                else if((drone_msg->new_drone_y <= 4)  && (drone_msg->new_drone_y > 2))
-                    force_y = force_y + max_force;
-                else
-                    force_y = force_y + (2*max_force);
-                break;
-            case 'c': artifcial_key = 'e'; 
-                if((drone_msg->new_drone_y >= borders[0]) && (drone_msg->new_drone_y < (borders[0]+2)))
-                    force_y = force_y - (max_force/2);
-                else if((drone_msg->new_drone_y >= (borders[0]+2)) && (drone_msg->new_drone_y < borders[0]+4))
-                    force_y = force_y - max_force;
-                else
-                    force_y = force_y - (2*max_force);
-                break;
-            case 'r': //------------------------------- need a check
-                printf("r detected\n");
-                printf("x pos %d\n",drone_msg->new_drone_x);
-                printf("y pos %d\n",drone_msg->new_drone_y);
-                if(drone_msg->new_drone_y <= 6){
-                    printf("executing x or v\n");
-                    {
-                        printf("upper border taken\n");
-                        artifcial_key = 'v';
-                        if((drone_msg->new_drone_y <= 6) && (drone_msg->new_drone_y > 4)){
-                            force_x = force_x + (oblique_force_comp/2);
-                            force_y = force_y + (oblique_force_comp/2);
-                        }
-                        else if((drone_msg->new_drone_y <= 4)  && (drone_msg->new_drone_y > 2)){
-                            force_x = force_x + oblique_force_comp;
-                            force_y = force_y + oblique_force_comp;
-                        }
-                        else{
-                            force_x = force_x + (2*oblique_force_comp);
-                            force_y = force_y + (2*oblique_force_comp);
-                        }
-                    }
-                }
-                else if(drone_msg->new_drone_x >= borders[1]){
-                    printf("right border taken\n");
-                    artifcial_key = 'w';
-                    if((drone_msg->new_drone_x >= borders[1]) && (drone_msg->new_drone_x < (borders[1]+2))){
-                        printf("forces applied\n");
-                        force_x = force_x - (oblique_force_comp/2) - 1;
-                        force_y = force_y - (oblique_force_comp/2);
-                    } 
-                    else if((drone_msg->new_drone_x >= (borders[1]+2)) && (drone_msg->new_drone_x < (borders[1]+4))){
-                        force_x = force_x - oblique_force_comp - 1;
-                        force_y = force_y - oblique_force_comp;
-                    }
-                    else{
-                        force_x = force_x - (2*oblique_force_comp);
-                        force_y = force_y - (2*oblique_force_comp);
-                    }
-                }
-                printf("after else if\n");
-                break;
-            case 'v': //-------------------------------
-                if(drone_msg->new_drone_y >= borders[0]){
-                    artifcial_key = 'r';
-                    if((drone_msg->new_drone_y >= borders[0]) && (drone_msg->new_drone_y < (borders[0]+2))){
-                        force_x = force_x + (oblique_force_comp/2);
-                        force_y = force_y - (oblique_force_comp/2);
-                    }
-                    else if((drone_msg->new_drone_y >= (borders[0]+2)) && (drone_msg->new_drone_y < borders[0]+4)){
-                        force_x = force_x + oblique_force_comp;
-                        force_y = force_y - oblique_force_comp;
-                    }
-                    else{
-                        force_x = force_x + (2*oblique_force_comp);
-                        force_y = force_y - (2*oblique_force_comp);
-                    }
-                }
-                else if(drone_msg->new_drone_x >= borders[1]){
-                    artifcial_key = 'x';
-                    if((drone_msg->new_drone_x >= borders[1]) && (drone_msg->new_drone_x < (borders[1]+2))){
-                        force_x = force_x - (oblique_force_comp/2) - 1;
-                        force_y = force_y + (oblique_force_comp/2);
-                    } 
-                    else if((drone_msg->new_drone_x >= (borders[1]+2)) && (drone_msg->new_drone_x < (borders[1]+4))){
-                        force_x = force_x - oblique_force_comp - 1;
-                        force_y = force_y + oblique_force_comp;
-                    }
-                    else{
-                        force_x = force_x - (2*oblique_force_comp);
-                        force_y = force_y + (2*oblique_force_comp);
-                    }
-                }
-                break;
-            case 'x': 
-                if(drone_msg->new_drone_y >= borders[0]){
-                    artifcial_key = 'w';
-                    if((drone_msg->new_drone_y >= borders[0]) && (drone_msg->new_drone_y < (borders[0]+2))){
-                        force_x = force_x - (oblique_force_comp/2);
-                        force_y = force_y - (oblique_force_comp/2);
-                    }
-                    else if((drone_msg->new_drone_y >= (borders[0]+2)) && (drone_msg->new_drone_y < borders[0]+4)){
-                        force_x = force_x - oblique_force_comp;
-                        force_y = force_y - oblique_force_comp;
-                    }
-                    else{
-                        force_x = force_x - (2*oblique_force_comp);
-                        force_y = force_y - (2*oblique_force_comp);
-                    }
-                }
-                else if(drone_msg->new_drone_x <= 6){
-                    artifcial_key = 'v';
-                    if((drone_msg->new_drone_x <= 6) && (drone_msg->new_drone_x > 4)){
-                        force_x = force_x + (oblique_force_comp/2);
-                        force_y = force_y + (oblique_force_comp/2);
-                    }
-                    else if((drone_msg->new_drone_x <= 4) && (drone_msg->new_drone_x > 2)){
-                        force_x = force_x + oblique_force_comp;
-                        force_y = force_y + oblique_force_comp;
-                    }
-                    else{
-                        force_x = force_x + (2*oblique_force_comp);
-                        force_y = force_y + (2*oblique_force_comp);
-                    }
-                }
-                break;
-            case 'w':
-                if(drone_msg->new_drone_y <= 6){
-                    {
-                        artifcial_key = 'x';
-                        if((drone_msg->new_drone_y <= 6) && (drone_msg->new_drone_y > 4)){
-                            force_x = force_x - (oblique_force_comp/2);
-                            force_y = force_y + (oblique_force_comp/2);
-                        }
-                        else if((drone_msg->new_drone_y <= 4)  && (drone_msg->new_drone_y > 2)){
-                            force_x = force_x - oblique_force_comp;
-                            force_y = force_y + oblique_force_comp;
-                        }
-                        else{
-                            force_x = force_x - (2*oblique_force_comp);
-                            force_y = force_y + (2*oblique_force_comp);
-                        }
-                    }
-                }
-                else if(drone_msg->new_drone_x <= 6){
-                    artifcial_key = 'r';
-                    if((drone_msg->new_drone_x <= 6) && (drone_msg->new_drone_x > 4)){
-                        force_x = force_x + (oblique_force_comp/2);
-                        force_y = force_y - (oblique_force_comp/2);
-                    }
-                    else if((drone_msg->new_drone_x <= 4) && (drone_msg->new_drone_x > 2)){
-                        force_x = force_x + oblique_force_comp;
-                        force_y = force_y - oblique_force_comp;
-                    }
-                    else{
-                        force_x = force_x + (2*oblique_force_comp);
-                        force_y = force_y - (2*oblique_force_comp);
-                    }
-                }
-                break;
-            default:
-                break;
+            // ----------
+
+            float threshold = 6.0f;   // Distance from border where repulsion begins
+            float k = max_force;      // Strength scale (you already have max_force)
+
+            float fx = 0.0f;
+            float fy = 0.0f;
+            char artificial_key = 'n'; // n = neutral  
+
+            // Distance from borders:
+            float d_left   = drone_msg->new_drone_x - 6;
+            float d_right  = borders[1] - drone_msg->new_drone_x;
+            float d_top    = drone_msg->new_drone_y - 6;
+            float d_bottom = borders[0] - drone_msg->new_drone_y;
+
+            printf("d_left: %f, d_right: %f, d_top: %f, d_bottom: %f\n", d_left,d_right,d_top,d_bottom);
+
+            // --- Horizontal repulsion ---
+            if (d_left < threshold) {
+                fx += k * (threshold - d_left) / threshold;  // push to +x
+                artificial_key = 'f';
+            }
+            if (d_right < threshold) {
+                fx -= k * (threshold - d_right) / threshold; // push to -x
+                artificial_key = 's';
             }
 
+            // --- Vertical repulsion ---
+            if (d_top < threshold) {
+                fy += k * (threshold - d_top) / threshold;   // push to +y
+                artificial_key = 'c';
+            }
+            if (d_bottom < threshold) {
+                fy -= k * (threshold - d_bottom) / threshold;// push to -y
+                artificial_key = 'e';
+            }
+
+            printf("force x: %f, force y: %f\n", fx,fy);
+
+            // Output force
+            force_x = fx;
+            force_y = fy;
+            
             printf("artificial key %c\n", artifcial_key);
             printf("applying force %f\n", force_x);
             // Along x axis
@@ -536,6 +397,8 @@ void move_drone(int fd_key, int fd_npos,DroneMsg* drone_msg, int next_drone_pos[
             previous_drone_pos[0] = drone_msg->new_drone_y;
             drone_msg->new_drone_y = next_drone_pos[0];
 
+            printf("force x: %f, force y: %f\n", force_x,force_y);
+
             // New position is sent to blackboard for graphical update
             write(fd_npos,drone_msg,sizeof(*drone_msg));
 
@@ -548,13 +411,14 @@ void move_drone(int fd_key, int fd_npos,DroneMsg* drone_msg, int next_drone_pos[
 
             if(force_x > 0)
                 force_x -= 1;
-            if(force_x < 0)
+            else if(force_x < 0)
                 force_x += 1;
             if(force_y > 0)
                 force_y -= 1;
-            if(force_y < 0)
+            else if(force_y < 0)
                 force_y += 1;
         }
+        //if(fabs(force_x) > epsilon || fabs(force_y) > epsilon){
         if(fabs(force_x) > epsilon || fabs(force_y) > epsilon){
             // Along x axis
             temp_x = force_x - (M/(T*T)*(loop_prev_drone_pos[1]-2*loop_curr_drone_pos[1])) + 
@@ -594,11 +458,11 @@ void move_drone(int fd_key, int fd_npos,DroneMsg* drone_msg, int next_drone_pos[
 
             if(force_x > 0)
                 force_x -= 1;
-            if(force_x < 0)
+            else if(force_x < 0)
                 force_x += 1;
             if(force_y > 0)
                 force_y -= 1;
-            if(force_y < 0)
+            else if(force_y < 0)
                 force_y += 1;
         }
         

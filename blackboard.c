@@ -112,6 +112,7 @@ int main(int argc, char* argv[]) {
     int fd_pos = atoi(argv[3]); // Used to send current drone position, obstacle positions and borders position to drone
     // Receives new position of drone from drone (movement), can be blocking, since we are waiting for a new position, 
     // after pressing a key, and realistically we wouldn't choose to resize window at that moment
+    
     int fd_npos_to_o = atoi(argv[4]); // Writes new drone position and borders to obstacle after resizing
     int fd_nobs = atoi(argv[5]); // Reads new obstacle positions
     int H, W;
@@ -144,6 +145,9 @@ int main(int argc, char* argv[]) {
     setlocale(LC_ALL, "");
 
     initscr();
+    resize_term(0, 0);
+    clear();
+    refresh();
     cbreak();
     noecho();
     keypad(stdscr, TRUE); // To receive KEY_RESIZE
@@ -174,7 +178,7 @@ int main(int argc, char* argv[]) {
     }
     
     while (1) {
-        if (getch() == KEY_RESIZE) {
+        if (getch() == KEY_RESIZE || is_term_resized(0, 0)) {
             // Resize window
             resize_term(0, 0);
             layout_and_draw(win);
@@ -227,6 +231,7 @@ int main(int argc, char* argv[]) {
                 positions.drone_y = drone_msg.new_drone_y;
                 positions.drone_x = drone_msg.new_drone_x;
                 mvwprintw(win,positions.drone_y,positions.drone_x,"+");
+                draw_rect(win,6,6,H-7,W-7,1);
                 wrefresh(win);
             }
         }

@@ -70,13 +70,15 @@ int main(int argc, char * argv[]){
             printf("pos border: %d, %d\n", positions.border_x,positions.border_y);
             // Creating obstacles
             for(int i = 0;i<N_OBS;i++){
-                printf("try3\n");
                 int pos_y = 7 + rand() % (positions.border_y - 7); // Random generator from 7 to H - 8
-                printf("try4\n");
                 int pos_x = 7 + rand() % (positions.border_x - 7); // Random generator from 7 to W - 8
-                printf("try5\n");
-                positions.obstacles[i][0] = pos_y;
-                positions.obstacles[i][1] = pos_x;
+                if(pos_x == (positions.border_x + 7)/2 || pos_y == (positions.border_y + 7)/2)
+                    // Obstacles mustn't spawn on drone
+                    i--;
+                else{   
+                    positions.obstacles[i][0] = pos_y;
+                    positions.obstacles[i][1] = pos_x;
+                }
             }
 
             write(fd_new_obs,&positions,sizeof(positions));
