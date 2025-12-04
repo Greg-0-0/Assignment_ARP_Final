@@ -9,8 +9,8 @@
 #include<time.h>
 #include<sys/select.h>
 
-#define N_OBS 10
 #define N_TARGETS 10
+#define N_OBS 10
 
 typedef enum{
     MSG_QUIT = 0,
@@ -44,12 +44,12 @@ ssize_t read_full(int fd, void* buf, size_t size) {
 int main(int argc, char * argv[]){
 
     if(argc < 3){
-        fprintf(stderr,"No arguments passed to obstacles\n");
+        fprintf(stderr,"No arguments passed to targets\n");
         exit(EXIT_FAILURE);
     }
-
+ //---
     int fd_new_pos = atoi(argv[1]); // Receives positions of drone and blackboard
-    int fd_new_obs = atoi(argv[2]); // Sends position of obstacles
+    int fd_new_trs = atoi(argv[2]); // Sends position of targets
     BlackboardMsg positions; positions.border_x = 0; positions.border_y = 0; 
     positions.drone_x = 0; positions.drone_y = 0; positions.type = MSG_NAN;
     
@@ -70,30 +70,35 @@ int main(int argc, char * argv[]){
             if(positions.type == MSG_QUIT)
                 exit(EXIT_SUCCESS);
             printf("pos border: %d, %d\n", positions.border_x,positions.border_y);
-            // Creating obstacles
-            for(int i = 0;i<N_OBS;i++){
+            // Creating targets
+            for(int i = 0;i<N_TARGETS;i++){
                 int pos_y = 7 + rand() % (positions.border_y - 7); // Random generator from 7 to H - 8
                 int pos_x = 7 + rand() % (positions.border_x - 7); // Random generator from 7 to W - 8
-                if(pos_x == (positions.border_x + 7)/2 || pos_y == (positions.border_y + 7)/2)
-                    // Obstacles mustn't spawn on drone
+                for(int j = 0;j<N_OBS;j++){
+                    if(pos_x == positions.obstacles[j][1] && pos_y == positions.obstacles[j][0]){
+                        i--;
+                        continue;
+                    }
+                }
+                if(pos_x == (positions.border_x + 7)/2 && pos_y == (positions.border_y + 7)/2)
+                    // Targets mustn't spawn on drone or obstacles
                     i--;
                 else{   
-                    positions.obstacles[i][0] = pos_y;
-                    positions.obstacles[i][1] = pos_x;
+                    positions.targets[i][0] = pos_y;
+                    positions.targets[i][1] = pos_x;
                 }
             }
 
-            write(fd_new_obs,&positions,sizeof(positions));
+            write(fd_new_trs,&positions,sizeof(positions));
         }
         else{
-            perror("read obstacles");
             exit(EXIT_FAILURE);
         }
 
 
     }
     close(fd_new_pos);
-    close(fd_new_obs);
+    close(fd_new_trs);
 
     return 0;
 }

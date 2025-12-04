@@ -14,6 +14,7 @@
 #include <ctype.h>
 
 #define N_OBS 10
+#define N_TARGETS 10
 
 typedef enum{
     MSG_QUIT = 0,
@@ -36,6 +37,7 @@ typedef struct{
     int border_y;
     int border_x;
     int obstacles[N_OBS][2];
+    int targets[N_TARGETS][2];
 } BlackboardMsg;
 
 // Scanning a string to remove its white spaces
@@ -329,11 +331,11 @@ void move_drone(int fd_key, int fd_npos,DroneMsg* drone_msg, int next_drone_pos[
             // ----------
 
             float threshold = 6.0f;   // Distance from border where repulsion begins
-            float k = max_force;      // Strength scale (you already have max_force)
+            float k = max_force;      // Strength scale
 
             float fx = 0.0f;
             float fy = 0.0f;
-            char artificial_key = 'n'; // n = neutral  
+            char artificial_key = 'n'; // no input
 
             // Distance from borders:
             float d_left   = drone_msg->new_drone_x - 6;
@@ -345,21 +347,21 @@ void move_drone(int fd_key, int fd_npos,DroneMsg* drone_msg, int next_drone_pos[
 
             // --- Horizontal repulsion ---
             if (d_left < threshold) {
-                fx += k * (threshold - d_left) / threshold;  // push to +x
+                fx += k * (threshold - d_left) / threshold;  // force towards right
                 artificial_key = 'f';
             }
             if (d_right < threshold) {
-                fx -= k * (threshold - d_right) / threshold; // push to -x
+                fx -= k * (threshold - d_right) / threshold; // force towards left
                 artificial_key = 's';
             }
 
             // --- Vertical repulsion ---
             if (d_top < threshold) {
-                fy += k * (threshold - d_top) / threshold;   // push to +y
+                fy += k * (threshold - d_top) / threshold;   // force towards down
                 artificial_key = 'c';
             }
             if (d_bottom < threshold) {
-                fy -= k * (threshold - d_bottom) / threshold;// push to -y
+                fy -= k * (threshold - d_bottom) / threshold;// // force towards up
                 artificial_key = 'e';
             }
 

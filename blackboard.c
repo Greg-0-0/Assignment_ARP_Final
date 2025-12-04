@@ -13,6 +13,7 @@
 #include <locale.h>
 
 #define N_OBS 10
+#define N_TARGETS 10
 
 typedef enum{
     MSG_QUIT = 0,
@@ -35,6 +36,7 @@ typedef struct{
         int border_y;
         int border_x;
         int obstacles[N_OBS][2];
+        int targets[N_TARGETS][2];
     } BlackboardMsg;
 
 void draw_rect(WINDOW *win, int y, int x, int h, int w, int color_pair)
@@ -65,44 +67,42 @@ void draw_rect(WINDOW *win, int y, int x, int h, int w, int color_pair)
 }
 
 
-static void layout_and_draw(WINDOW *win) {
-    int H, W;
-    getmaxyx(stdscr, H, W);
+static void layout_and_draw(WINDOW *win,int* H, int* W) {
+    //int H, W;
+    getmaxyx(stdscr, *H, *W);
     start_color();
 
     init_pair(1, COLOR_RED, COLOR_BLACK);
 
     // Windows with fixed margins
-    int wh = (H > 6) ? H - 6 : H;
-    int ww = (W > 10) ? W - 10 : W;
+    int wh = (*H > 6) ? *H - 6 : *H;
+    int ww = (*W > 10) ? *W - 10 : *W;
     if (wh < 3) wh = 3;
     if (ww < 3) ww = 3;
 
     // Resize and recenter the window
     wresize(win, wh, ww);
-    mvwin(win, (H - wh) / 2, (W - ww) / 2);
+    mvwin(win, (*H - wh) / 2, (*W - ww) / 2);
 
     // Klean up and redraw
     werase(stdscr);
     werase(win);
     box(win, 0, 0);
-    getmaxyx(win, H, W);
+    getmaxyx(win, *H, *W);
     // Drawable region goes from y:1 to H-2 and x:1 to W-2
 
     // Spawn drone
-    mvwprintw(win,H/2,W/2,"+");
-
-    mvwprintw(win,H/2+4,W/2+20,"pos: %d,%d", H-7, W-7);
+    mvwprintw(win,*H/2,*W/2,"+");
 
     refresh();
     wrefresh(win);
 
-    draw_rect(win,6,6,H-7,W-7,1);
+    draw_rect(win,6,6,*H-7,*W-7,1);
 }
 
 int main(int argc, char* argv[]) {
 
-    if(argc < 6){
+    if(argc < 8){
         fprintf(stderr,"No arguments passed to blackboard\n");
         exit(EXIT_FAILURE);
     }
@@ -114,7 +114,10 @@ int main(int argc, char* argv[]) {
     // after pressing a key, and realistically we wouldn't choose to resize window at that moment
     
     int fd_npos_to_o = atoi(argv[4]); // Writes new drone position and borders to obstacle after resizing
-    int fd_nobs = atoi(argv[5]); // Reads new obstacle positions
+    int fd_nobs = atoi(argv[5]); // Reads new obstacles position
+    int fd_npos_to_t = atoi(argv[6]); // Writes new drone position, borders and obstacle after resizing
+    int fd_trs = atoi(argv[7]); // Reads new targets position
+
     int H, W;
 
     // Make reads from fd_req and fd_npos not blocking
@@ -145,6 +148,7 @@ int main(int argc, char* argv[]) {
     setlocale(LC_ALL, "");
 
     initscr();
+    start_color(); // For window synchronization
     resize_term(0, 0);
     clear();
     refresh();
@@ -155,8 +159,8 @@ int main(int argc, char* argv[]) {
 
     // Window with temporary dimensions
     WINDOW *win = newwin(3, 3, 0, 0);
-    layout_and_draw(win);
-    getmaxyx(win, H, W);
+    layout_and_draw(win,&H,&W);
+    //getmaxyx(win, H, W);
 
     // Initial drone position
     positions.drone_y = H/2; // y
@@ -169,20 +173,35 @@ int main(int argc, char* argv[]) {
     refresh();
     wrefresh(win);
     
+    // Retrieving obstacles position
     write(fd_npos_to_o,&positions,sizeof(positions));
     read(fd_nobs,&positions,sizeof(positions));
 
+    // Printing obstacles
     for(int i = 0;i<N_OBS;i++){
         mvwprintw(win,positions.obstacles[i][0],positions.obstacles[i][1],"o");
         wrefresh(win);
     }
+
+    // Retrieving targets position
+    write(fd_npos_to_t,&positions,sizeof(positions));
+    read(fd_trs,&positions,sizeof(positions));
+
+    // Printing targets
+    for(int i = 0;i<N_TARGETS;i++){
+        mvwprintw(win,positions.targets[i][0],positions.targets[i][1],"T");
+        wrefresh(win);
+    }
+
+    sleep(5);
     
     while (1) {
-        if (getch() == KEY_RESIZE || is_term_resized(0, 0)) {
+        if (getch() == KEY_RESIZE) {
+
             // Resize window
             resize_term(0, 0);
-            layout_and_draw(win);
-            getmaxyx(win, H, W);
+            layout_and_draw(win,&H,&W);
+            //getmaxyx(win, H, W);
 
             // Reset drone position
             positions.drone_y = H/2; // y
@@ -194,14 +213,29 @@ int main(int argc, char* argv[]) {
 
             int temp = positions.type;
             positions.type = MSG_POS;
+
+            // Retrieving obstacles position 
             write(fd_npos_to_o,&positions,sizeof(positions));
             read(fd_nobs,&positions,sizeof(positions));
             positions.type = temp;
 
+            // Printing obstacles
             for(int i = 0;i<N_OBS;i++){
                 mvwprintw(win,positions.obstacles[i][0],positions.obstacles[i][1],"o");
                 wrefresh(win);
             }
+
+            // Retrieving targets position
+            write(fd_npos_to_t,&positions,sizeof(positions));
+            read(fd_trs,&positions,sizeof(positions));
+
+            // Printing targets
+            for(int i = 0;i<N_TARGETS;i++){
+                mvwprintw(win,positions.targets[i][0],positions.targets[i][1],"T");
+                wrefresh(win);
+            }
+
+            positions.type = temp;
 
         }
         read(fd_req, &drone_msg, sizeof(drone_msg)); // Checks for position request from drone (non blocking)
@@ -217,6 +251,7 @@ int main(int argc, char* argv[]) {
                 if(drone_msg.type == MSG_QUIT){
                     positions.type = MSG_QUIT;
                     write(fd_npos_to_o,&positions,sizeof(positions));
+                    write(fd_npos_to_t,&positions,sizeof(positions));
                     exit(EXIT_SUCCESS);
                 }
                 mvwaddch(win,positions.drone_y,positions.drone_x,' ');
@@ -238,6 +273,7 @@ int main(int argc, char* argv[]) {
         else if(drone_msg.type == MSG_QUIT){
             positions.type = MSG_QUIT;
             write(fd_npos_to_o,&positions,sizeof(positions));
+            write(fd_npos_to_t,&positions,sizeof(positions));
             exit(EXIT_SUCCESS);
         }
         wrefresh(win);
@@ -246,6 +282,10 @@ int main(int argc, char* argv[]) {
     close(fd_req);
     close(fd_npos);
     close(fd_pos);
+    close(fd_npos_to_o);
+    close(fd_nobs);
+    close(fd_npos_to_t);
+    close(fd_trs);
 
     delwin(win);
     endwin();

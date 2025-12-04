@@ -11,11 +11,6 @@
 #include<ncurses.h>
 
 int main(int argc, char* argv[]){
-    /*
-    char* myfifo = "/tmp/myfifoFromIToD";
-    mkfifo(myfifo, 0666);
-    int fd;
-    */
 
     if(argc < 2){
         fprintf(stderr,"No arguments passed to input manager\n");
@@ -24,12 +19,18 @@ int main(int argc, char* argv[]){
 
     int fd_key = atoi(argv[1]);
 
-    int x, y;
+    int y, x;
 
     char input_key = 'o';
     initscr();
+    start_color();
+    resize_term(0, 0);
+    clear();
     cbreak();
     noecho();
+    keypad(stdscr, TRUE); // To receive KEY_RESIZE
+    nodelay(stdscr, TRUE); // getch() becomes non-blocking, this way there is no wait for resizing, and code can keep executing
+
     getmaxyx(stdscr, y, x);
     mvprintw(y/2, x/2, "d");
     mvprintw(y/2, x/2+1, "f");
@@ -40,31 +41,44 @@ int main(int argc, char* argv[]){
     mvprintw(y/2, x/2-1, "s");
     mvprintw(y/2-1, x/2, "e");
     mvprintw(y/2+1, x/2, "c");
+    mvprintw(y/2+7, x/2-7, "PRESS q TO EXIT");
     refresh();
-
-    /*
-    fd = open(myfifo, O_WRONLY);
-    if(fd < 0){
-        // Careful executing this process before drone, beacuse it will return instantly,
-        // since drone hasn't started yet, thus the open with write flag on this fd will return < 0
-        // (the open with read flag on the same fd, that should be executed by drone, hasn't started yet)
-
-        // Master process must execute drone before input_manager
-        perror("open");
-        return 0;
-    }
-        */
 
     while(1){
         input_key = getch();
-        refresh();
+
+        int new_y, new_x;
+        getmaxyx(stdscr, new_y, new_x);
+
+        if (input_key == KEY_RESIZE || is_term_resized(y, x)) {
+            // Storing new values
+            y = new_y;
+            x = new_x;
+
+            // Resize window
+            resize_term(0, 0);
+            start_color();
+            werase(stdscr);
+
+            getmaxyx(stdscr,y, x);
+            mvprintw(y/2, x/2, "d");
+            mvprintw(y/2, x/2+1, "f");
+            mvprintw(y/2-1, x/2+1, "r");
+            mvprintw(y/2+1, x/2+1, "v");
+            mvprintw(y/2+1, x/2-1, "x");
+            mvprintw(y/2-1, x/2-1, "w");
+            mvprintw(y/2, x/2-1, "s");
+            mvprintw(y/2-1, x/2, "e");
+            mvprintw(y/2+1, x/2, "c");
+            mvprintw(y/2+7, x/2-7, "PRESS q TO EXIT");
+            refresh();
+        }
         if(input_key == 'w' || input_key == 'e' || input_key == 'r' || input_key == 's'|| input_key == 'd' || 
             input_key == 'f' || input_key == 'x' || input_key == 'c' || input_key == 'v' || input_key == 'q'){
                 write(fd_key, &input_key,1);
                 if(input_key == 'q')
                     exit(EXIT_SUCCESS);
-            }
-        refresh();
+        }
     }   
 
     close(fd_key);
