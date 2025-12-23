@@ -20,7 +20,7 @@ int main(int argc, char* argv[]) {
     int fd_npos_to_t = atoi(argv[6]); // Writes new drone, borders and obstacles position after resizing
     int fd_trs = atoi(argv[7]); // Reads new targets position
 
-    int H, W;
+    int H, W, reached_targets = 0;
 
     // Make reads from fd_req and fd_npos not blocking
     int flags = fcntl(fd_req, F_GETFL, 0);
@@ -102,7 +102,7 @@ int main(int argc, char* argv[]) {
     // Printing targets
     for(int i = 0;i<N_TARGETS;i++){
         wattron(win, COLOR_PAIR(2));
-        mvwprintw(win,positions.targets[i][0],positions.targets[i][1],"T");
+        mvwprintw(win,positions.targets[i][0],positions.targets[i][1],"%d",i+1);
         wattroff(win, COLOR_PAIR(2));
         wrefresh(win);
     }
@@ -137,7 +137,6 @@ int main(int argc, char* argv[]) {
             // Retrieving obstacles position 
             write(fd_npos_to_o,&positions,sizeof(positions));
             read(fd_nobs,&positions,sizeof(positions));
-            positions.type = temp;
 
             // Printing obstacles
             for(int i = 0;i<N_OBS;i++){
@@ -154,7 +153,7 @@ int main(int argc, char* argv[]) {
             // Printing targets
             for(int i = 0;i<N_TARGETS;i++){
                 wattron(win, COLOR_PAIR(2));
-                mvwprintw(win,positions.targets[i][0],positions.targets[i][1],"T");
+                mvwprintw(win,positions.targets[i][0],positions.targets[i][1],"%d",i+1);
                 wattroff(win, COLOR_PAIR(2));
                 wrefresh(win);
             }
@@ -221,6 +220,7 @@ int main(int argc, char* argv[]) {
                 mvwprintw(win,positions.drone_y,positions.drone_x,"+"); // Drawing drone at new position
                 wattroff(win, COLOR_PAIR(4));
                 draw_rect(win,6,6,H-7,W-7,1);
+                check_targets_reached(&positions, win, &reached_targets, fd_trs, fd_npos_to_t);
                 wrefresh(win);
             }
         }

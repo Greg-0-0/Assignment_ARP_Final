@@ -18,7 +18,7 @@
 #include <sys/time.h>
 
 #define N_OBS 10
-#define N_TARGETS 10
+#define N_TARGETS 9
 
 // Enum variable to classify every type of message sent via pipe
 typedef enum{
@@ -90,6 +90,10 @@ void move_drone(int fd_key, int fd_npos,DroneMsg* drone_msg, int next_drone_pos[
 
 // Function to check wether new obstacle position is valid
 int check_position(int new_y, int new_x, BlackboardMsg positions);
+
+// ------ used in targets.c ------
+
+void check_targets_reached(BlackboardMsg* positions, WINDOW* win, int* reached_targets, int fd_trs, int fd_npos_to_t);
 
 // ------ used in obstacles.c & targets.c ------
 
