@@ -11,9 +11,12 @@ int main(){
     int pipe_B_to_T[2];
     int pipe_T_to_B[2];
     int pipe_B_to_I[2];
+    sem_t *log_sem = sem_open("/log_sem", O_CREAT, 0666, 1);
 
     if(pipe(pipe_I_to_D) < 0 || pipe(pipe_D_to_B_Req) < 0 || pipe(pipe_B_to_D_Pos) < 0 || pipe(pipe_D_to_B_NPos) < 0 || 
-        pipe(pipe_O_to_B) < 0 || pipe(pipe_B_to_O) || pipe(pipe_B_to_T) < 0 || pipe(pipe_T_to_B) < 0 || pipe(pipe_B_to_I) < 0){
+        pipe(pipe_O_to_B) < 0 || pipe(pipe_B_to_O) < 0 || pipe(pipe_B_to_T) < 0 || pipe(pipe_T_to_B) < 0 || pipe(pipe_B_to_I) < 0){
+
+        log_error("application.log", "MASTER", "pipe", log_sem);
         perror("pipe");
         exit(EXIT_FAILURE);
     }
@@ -61,6 +64,9 @@ int main(){
     char *args_targets[] = {"./targets", argt1, argt2, NULL };
     spawn(args_targets[0], args_targets);
 
+    // Appliaction has started successfully
+    write_log("application.log", "MASTER", "INFO", "Application started successfully", log_sem);
+
     // Closing all pipes
     close(pipe_I_to_D[0]); close(pipe_I_to_D[1]);
     close(pipe_D_to_B_Req[0]); close(pipe_D_to_B_Req[1]);
@@ -71,5 +77,8 @@ int main(){
     close(pipe_B_to_T[0]); close(pipe_B_to_T[1]);
     close(pipe_T_to_B[0]); close(pipe_T_to_B[1]);
     close(pipe_B_to_I[0]); close(pipe_B_to_I[1]);
+    sem_close(log_sem);
+    sem_unlink("/log_sem");
+
     return 0;
 }

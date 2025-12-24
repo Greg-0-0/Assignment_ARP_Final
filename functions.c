@@ -610,3 +610,33 @@ void spawn(const char *prog, char *const argv[]) {
     }
 }
 
+// ------ used in  master.c ------
+
+void write_log(const char* log_filename, const char* process_name,
+     const char* level, const char* message, sem_t *log_sem){
+    time_t now = time(NULL);
+    struct tm* t = localtime(&now);
+    char time_str[64];
+    strftime(time_str, sizeof(time_str), "[%Y-%m-%d %H:%M:%S]", t);
+    char log_message[512];
+    snprintf(log_message, sizeof(log_message), "%s [%s] [%s] %s", time_str, process_name, level, message);
+
+    // Ensure exclusive access to the log file
+    sem_wait(log_sem);
+    FILE* log_file = fopen(log_filename, "a"); // Append mode -> seek end of file
+    if(!log_file){
+        perror("fopen");
+        exit(EXIT_FAILURE);
+    }
+    fprintf(log_file, "%s\n", log_message);
+    fflush(log_file); // Ensure data is written to file
+    fclose(log_file);
+    sem_post(log_sem);
+}
+
+void log_error(const char* log_filename, const char* process_name,
+     const char* context, sem_t *log_sem){
+    char error_msg[512];
+    snprintf(error_msg, sizeof(error_msg), "%s: %s", context, strerror(errno));
+    write_log(log_filename, process_name, "ERROR", error_msg, log_sem);
+}

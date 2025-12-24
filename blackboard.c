@@ -246,6 +246,7 @@ int main(int argc, char* argv[]) {
     close(fd_nobs);
     close(fd_npos_to_t);
     close(fd_trs);
+    close(fd_ninfo_to_im);
 
     delwin(win);
     endwin();

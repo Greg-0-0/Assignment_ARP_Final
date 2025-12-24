@@ -16,6 +16,8 @@
 #include <ctype.h>
 #include <signal.h>
 #include <sys/time.h>
+#include <semaphore.h>
+#include <errno.h>
 
 #define N_OBS 10
 #define N_TARGETS 9
@@ -104,5 +106,15 @@ ssize_t read_full(int fd, void* buf, size_t size);
 
 // Function to run separte processes
 void spawn(const char *prog, char *const argv[]);
+
+// ------ used in  ------
+
+// Function to write log messages to a log file
+void write_log(const char* log_filename, const char* process_name,
+     const char* level, const char* message, sem_t *log_sem);
+
+// Function to write error messages to a log file
+void log_error(const char* log_filename, const char* process_name,
+     const char* context, sem_t *log_sem);
 
 #endif
