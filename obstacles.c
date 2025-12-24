@@ -34,8 +34,8 @@ int main(int argc, char * argv[]){
                     int pos_y = 7 + rand() % (positions.border_y - 7); // Random generator from 7 to H - 8
                     int pos_x = 7 + rand() % (positions.border_x - 7); // Random generator from 7 to W - 8
 
-                    // Checking if new position collides with targets or drone
-                    if(check_position(pos_y, pos_x, positions)){
+                    // Checking if new position collides with targets, drone or other obstacles
+                    if(check_position(pos_y, pos_x, positions, i-1, 0, 1)){
                         i--;
                         continue;
                     }
@@ -48,13 +48,13 @@ int main(int argc, char * argv[]){
                 for(int i = 0;i<N_OBS;i++){
                     int pos_y = 7 + rand() % (positions.border_y - 7); // Random generator from 7 to H - 8
                     int pos_x = 7 + rand() % (positions.border_x - 7); // Random generator from 7 to W - 8
-                    if(pos_x == (positions.border_x + 7)/2 || pos_y == (positions.border_y + 7)/2)
-                        // Obstacles mustn't spawn on drone
+                    // Checking if new position collides with drone or other obstacles
+                    if(check_position(pos_y, pos_x, positions, i-1, 0, 0)){
                         i--;
-                    else{   
-                        positions.obstacles[i][0] = pos_y;
-                        positions.obstacles[i][1] = pos_x;
+                        continue;
                     }
+                    positions.obstacles[i][0] = pos_y;
+                    positions.obstacles[i][1] = pos_x;
                 }
 
             }

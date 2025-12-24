@@ -32,19 +32,12 @@ int main(int argc, char * argv[]){
             for(int i = 0;i<N_TARGETS;i++){
                 int pos_y = 7 + rand() % (positions.border_y - 7); // Random generator from 7 to H - 8
                 int pos_x = 7 + rand() % (positions.border_x - 7); // Random generator from 7 to W - 8
-                for(int j = 0;j<N_OBS;j++){
-                    if(pos_x == positions.obstacles[j][1] && pos_y == positions.obstacles[j][0]){
-                        i--;
-                        continue;
-                    }
-                }
-                if(pos_x == (positions.border_x + 7)/2 && pos_y == (positions.border_y + 7)/2)
-                    // Targets mustn't spawn on drone or obstacles
+                if(check_position(pos_y, pos_x, positions, i-1, 1, 0)){
                     i--;
-                else{   
-                    positions.targets[i][0] = pos_y;
-                    positions.targets[i][1] = pos_x;
+                    continue;
                 }
+                positions.targets[i][0] = pos_y;
+                positions.targets[i][1] = pos_x;
             }
 
             write(fd_new_trs,&positions,sizeof(positions));

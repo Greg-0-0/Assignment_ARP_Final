@@ -539,25 +539,54 @@ void move_drone(int fd_key, int fd_npos,DroneMsg* drone_msg, int next_drone_pos[
     return;
 }
 
-// ------ used in obstacles.c ------
+// ------ used in obstcles.c & targets.c ------
 
-int check_position(int new_y, int new_x, BlackboardMsg positions){
-    // Check if new position collides with drone
-    if(new_y == positions.drone_y && new_x == positions.drone_x){
+int check_position(int new_y, int new_x, BlackboardMsg positions, int n_spawned_elem,
+     int obstacles_spawned, int targets_spawned){
+    // Check if new position is within 2 pixels from the drone
+    if(new_y >= abs(positions.drone_y - 2) && new_y <= abs(positions.drone_y + 2) &&
+       new_x >= abs(positions.drone_x - 2) && new_x <= abs(positions.drone_x + 2)){
         return 1; // Invalid position
     }
 
-    // Check if new position collides with targets
-    for(int i = 0;i<N_TARGETS;i++){
-        if(positions.targets[i][0] == new_y && positions.targets[i][1] == new_x){
-            return 1; // Invalid position
+    if(obstacles_spawned){
+        // Check if new position collides with other targets
+        for(int i = 0;i<n_spawned_elem;i++){
+            if(positions.targets[i][0] == new_y && positions.targets[i][1] == new_x){
+                return 1; // Invalid position
+            }
+        }   
+    }
+    else{
+        // Check if new position collides with other obstacles
+        for(int i = 0;i<n_spawned_elem;i++){
+            if(positions.obstacles[i][0] == new_y && positions.obstacles[i][1] == new_x){
+                return 1; // Invalid position
+            }
+        }
+    }
+
+    if(targets_spawned){
+        // Execute only if targets have already been spawned
+        // Check if new position collides with targets
+        for(int i = 0;i<N_TARGETS;i++){
+            if(positions.targets[i][0] == new_y && positions.targets[i][1] == new_x){
+                return 1; // Invalid position
+            }
+        }
+    }
+
+    if(obstacles_spawned){
+        // If checking for targets spawning, ensure they don't spawn on obstacles
+        for(int i = 0;i<N_OBS;i++){
+            if(positions.obstacles[i][0] == new_y && positions.obstacles[i][1] == new_x){
+                return 1; // Invalid position
+            }
         }
     }
 
     return 0; // Valid position
 }
-
-// ------ used in obstcles.c & targets.c ------
 
 ssize_t read_full(int fd, void* buf, size_t size) {
     size_t total = 0;

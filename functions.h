@@ -91,12 +91,11 @@ void compute_repulsive_forces(int fd_npos,DroneMsg* drone_msg, double* force_x, 
 void move_drone(int fd_key, int fd_npos,DroneMsg* drone_msg, int next_drone_pos[2],double force_x, double force_y, double max_force, 
        double oblique_force_comp, double M, double K, double T, int borders[], int obstacles[N_OBS][2], int ro);
 
-// ------ used in obstacles.c ------
+// ------ used in obstacles.c & targets.c ------
 
 // Function to check wether new obstacle position is valid
-int check_position(int new_y, int new_x, BlackboardMsg positions);
-
-// ------ used in obstacles.c & targets.c ------
+int check_position(int new_y, int new_x, BlackboardMsg positions, int n_spawned_elem,
+     int obstacles_spawned, int targets_spawned);
 
 // Function used to ensure all the bytes composing the message received are read
 ssize_t read_full(int fd, void* buf, size_t size);

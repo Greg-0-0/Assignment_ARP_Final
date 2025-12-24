@@ -96,6 +96,8 @@ int main(int argc, char* argv[]) {
         wrefresh(win);
     }
 
+    sleep(7);
+
     // Retrieving targets position
     write(fd_npos_to_t,&positions,sizeof(positions));
     read(fd_trs,&positions,sizeof(positions));
