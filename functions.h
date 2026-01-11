@@ -20,6 +20,10 @@
 #include <sys/time.h>
 #include <semaphore.h>
 #include <errno.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include<netdb.h>
+#include <netinet/tcp.h>
 
 #define N_OBS 10
 #define N_TARGETS 9 
@@ -32,7 +36,8 @@ typedef enum{
     MSG_STOP = 3,
     MSG_NAN = 4,
     MSG_NOB = 5,
-    MSG_NTARGET = 6
+    MSG_NTARGET = 6,
+    MSG_WSIZE = 7
 } MsgType;
 
 // Struct to define message sent by drone to blackboard with new drone position
@@ -56,6 +61,7 @@ typedef struct{
 
 // Global variable to signal obstacle position update
 extern volatile sig_atomic_t update_obstacles;
+extern volatile sig_atomic_t heartbeat_due;
 
 // ------ used in blackboard.c ------
 
@@ -64,6 +70,9 @@ void draw_rect(WINDOW *win, int y, int x, int h, int w, int color_pair);
 
 // Function to create the outer window where the drone moves
 void layout_and_draw(WINDOW *win);
+
+// Function to create the outer window for networked application
+void layout_and_draw_for_networked_app(WINDOW *win, int server_client_flag, int height, int width);
 
 // Sets flag to change obstacle position
 void change_obstacle_position_flag();
@@ -91,13 +100,19 @@ void compute_repulsive_forces(int fd_npos,DroneMsg* drone_msg, double* force_x, 
     double M, double K, double T, int obstacles[N_OBS][2], int ro, double loop_prev_drone_pos[2],double loop_curr_drone_pos[2],
     double loop_next_drone_pos[2], int previous_drone_pos[2], int next_drone_pos[2], double* temp_x, double* temp_y, sem_t *log_sem);
 
+// Lightweight repulsion update for networked mode (single step, no delay)
+// Returns 1 if quit was requested, 0 otherwise
+int apply_single_repulsion_step(int fd_npos, int fd_key, DroneMsg* drone_msg, double max_force, double M, double K, double T, 
+    int obstacles[N_OBS][2], int ro, int borders[2], sem_t *log_sem);
+
 // Function to implement drone movement and border repulsion
-void move_drone(int fd_key, int fd_npos,DroneMsg* drone_msg, int next_drone_pos[2],double force_x, double force_y, double max_force, 
+// Returns 1 if user pressed 'q' to quit, 0 otherwise
+int move_drone(int fd_key, int fd_npos,DroneMsg* drone_msg, int next_drone_pos[2],double force_x, double force_y, double max_force, 
        double oblique_force_comp, double M, double K, double T, int borders[], int obstacles[N_OBS][2], int ro, sem_t *log_sem);
 
 // ------ used in obstacles.c & targets.c ------
 
-// Function to check wether new obstacle position is valid
+// Function to check whether the new obstacle/target position is valid
 int check_position(int new_y, int new_x, BlackboardMsg positions, int n_spawned_elem,
      int obstacles_spawned, int targets_spawned);
 
@@ -109,7 +124,10 @@ ssize_t read_full(int fd, void* buf, size_t size);
 // Function to run separte processes
 int spawn(const char *prog, char *const argv[]);
 
-// ------ used in  ------
+// ------ used in master.c & input_manager.c & blackboard.c & obstacles.c & targets.c ------
+
+// Function to identify process pid and write it to process log file
+void write_process_pid(const char* log_filename, const char* process_name, pid_t pid, sem_t *log_sem);
 
 // Function to write log messages to a log file
 void write_log(const char* log_filename, const char* process_name,
@@ -135,5 +153,16 @@ int setup_heartbeat_posix_timer(int interval_sec, int signo);
 
 // If a heartbeat is due, send it via fd to watchdog (writes pid)
 void send_heartbeat_if_due(int fd_watchdog, const char* process_name, sem_t *log_sem);
+
+// ------ socket_manager helpers (used by socket_manager.c) ------
+
+// Function to analyze dron position/window size and prepare fixed message to send to client
+void analyze_position_n_size_and_prepare_message(BlackboardMsg positions, char* buffer_output, int wind_H);
+
+// Helper function to print error message, close sockets and exit
+void error(int newsockfd, int sockfd, const char *msg, sem_t *log_sem);
+
+// Helper function to read a line (ending with '\n') from the socket, this avoids mixing messages
+ssize_t read_line(int fd, char *buf, size_t maxlen);
 
 #endif

@@ -4,11 +4,6 @@
 volatile sig_atomic_t update_obstacles = 0;
 volatile sig_atomic_t heartbeat_due = 0;
 static timer_t heartbeat_timer_id;
-volatile sig_atomic_t send_signal_from_drone = 0;
-volatile sig_atomic_t send_signal_from_obstacles = 0;
-volatile sig_atomic_t send_signal_from_targets = 0;
-volatile sig_atomic_t send_signal_from_blackboard = 0;
-volatile sig_atomic_t send_signal_from_input_manager = 0;
 
 // ------ used in blackboard.c ------
 
@@ -79,6 +74,82 @@ void layout_and_draw(WINDOW *win) {
     draw_rect(win,6,6,H-7,W-7,1);
 }
 
+void layout_and_draw_for_networked_app(WINDOW *win, int server_client_flag, int height, int width) {
+
+    int H, W;
+    if(server_client_flag){
+        // Client: set fixed dimensions received from server
+        H = height;
+        W = width;
+    }
+    else
+        // Server: get terminal dimensions
+        getmaxyx(stdscr, H, W);
+
+    start_color();
+
+    init_pair(1, COLOR_RED, COLOR_BLACK);
+    init_pair(2, COLOR_GREEN, COLOR_BLACK);
+    init_pair(3, COLOR_YELLOW, COLOR_BLACK);
+    init_pair(4, COLOR_BLUE, COLOR_BLACK);
+
+    int wh, ww;
+    if(server_client_flag){
+        // Client: set fixed dimensions received from server
+        wh = height;
+        ww = width;
+    }
+    else {
+        // Windows with fixed margins
+        wh = (H > 6) ? H - 6 : H;
+        ww = (W > 10) ? W - 10 : W;
+        if (wh < 3) wh = 3;
+        if (ww < 3) ww = 3;
+    }
+
+    // Resize and recenter the window
+    wresize(win, wh, ww);
+    mvwin(win, (H - wh) / 2, (W - ww) / 2);
+
+    // Klean up and redraw
+    werase(stdscr);
+    werase(win);
+    box(win, 0, 0);
+    getmaxyx(win, H, W);
+    // Drawable region goes from y:1 to H-2 and x:1 to W-2
+
+    // Spawn drone
+    if(server_client_flag){
+        // Client
+        // Spawn drone
+        wattron(win, COLOR_PAIR(4));
+        mvwprintw(win,H/2,W/2 + 7,"+");
+        wattroff(win, COLOR_PAIR(4));
+
+        // Spawn drone from other application
+        wattron(win, COLOR_PAIR(3));
+        mvwprintw(win,H/2,W/2 - 7,"o");
+        wattroff(win, COLOR_PAIR(3));
+    }
+    else {
+        // Server
+        // Spawn drone
+        wattron(win, COLOR_PAIR(4));
+        mvwprintw(win,H/2,W/2 - 7,"+");
+        wattroff(win, COLOR_PAIR(4));
+
+        // Spawn obstacle representing drone from other application
+        wattron(win, COLOR_PAIR(3));
+        mvwprintw(win,H/2,W/2 + 7,"o");
+        wattroff(win, COLOR_PAIR(3));
+    }
+
+    refresh();
+    wrefresh(win);
+
+    draw_rect(win,6,6,H-7,W-7,1);
+}
+
 void change_obstacle_position_flag(){
     update_obstacles = 1;
 }
@@ -141,7 +212,7 @@ int load_parameters(const char* filename, double* drone_mass, double* air_resist
     FILE* file = fopen(filename, "r");
     if(!file){
         log_error("application.log", "DRONE", "file open", NULL);
-        perror("file open");
+        perror("FUNCTIONS.C line-139 file open");
         exit(EXIT_FAILURE);
     }
 
@@ -169,40 +240,40 @@ int load_parameters(const char* filename, double* drone_mass, double* air_resist
             if(strcmp(k,"DRONE_MASS") == 0){
                 *drone_mass = atoi(v);
                 if(*drone_mass < 0){
-                    printf("Invalid mass value\n");
+                    printf("load_parameters: Invalid mass value\n");
                     return -1;
                 }
             }
             else if(strcmp(k,"AIR_RESISTANCE") == 0){
                 *air_resistance = atoi(v);
                 if(*air_resistance < 0){
-                    printf("Invalid air resistance value\n");
+                    printf("load_parameters: Invalid air resistance value\n");
                     return -1;
                 }
             }
             else if(strcmp(k,"INTEGRATION_INTERVAL") == 0){
                 *integr_inter = atoi(v);
                 if(*integr_inter < 0){
-                    printf("Invalid integration interval\n");
+                    printf("load_parameters: Invalid integration interval\n");
                     return -1;
                 }
             }
             else if(strcmp(k,"REPULSIVE_RADIUS") == 0){
                 *rep_radius = atoi(v);
                 if(*rep_radius < 0){
-                    printf("Invalid repulsive radius\n");
+                    printf("load_parameters: Invalid repulsive radius\n");
                     return -1;
                 }
             }
             else if(strcmp(k,"MAX_APPLIED_FORCE") == 0){
                 *max_force = atoi(v);
                 if(*max_force < 0){
-                    printf("Invalid maximum force value\n");
+                    printf("load_parameters: Invalid maximum force value\n");
                     return -1;
                 }
             }
             else{
-                printf("Error: unknown parameter -> %s\n", k);
+                printf("load_parameters: unknown parameter -> %s\n", k);
                 return -1;
             }
         }
@@ -237,8 +308,11 @@ void compute_repulsive_forces(int fd_npos,DroneMsg* drone_msg, double* force_x, 
     double loop_next_drone_pos[2], int previous_drone_pos[2], int next_drone_pos[2], double* temp_x, double* temp_y, sem_t *log_sem){
     
     int distance = -1;
-    // Computing ditances among drone and obstacles too see if in range
+    // Computing distances among drone and obstacles too see if in range
     for(int i = 0;i<N_OBS;i++){
+        if(obstacles[i][0] == -1 && obstacles[i][1] == -1)
+            // Networked mode -> only one obstacle (others set to -1,-1)
+            break;
         distance = sqrt(pow(drone_msg->new_drone_y - obstacles[i][0],2)+pow(drone_msg->new_drone_x - obstacles[i][1],2));
         if(distance <= ro){ // ro = 5
             // Drone is inside the obstacle repulsive area
@@ -296,7 +370,7 @@ void compute_repulsive_forces(int fd_npos,DroneMsg* drone_msg, double* force_x, 
     }
 }
 
-void move_drone(int fd_key, int fd_npos,DroneMsg* drone_msg, int next_drone_pos[2],double force_x, double force_y, double max_force, 
+int move_drone(int fd_key, int fd_npos,DroneMsg* drone_msg, int next_drone_pos[2],double force_x, double force_y, double max_force, 
        double oblique_force_comp, double M, double K, double T, int borders[], int obstacles[N_OBS][2], int ro, sem_t *log_sem){
 
     fd_set rfds;
@@ -314,15 +388,25 @@ void move_drone(int fd_key, int fd_npos,DroneMsg* drone_msg, int next_drone_pos[
     int delay = 40, control = 0, is_on_border = 0;
     tv.tv_sec = 0;
     tv.tv_usec = 100000; // Select checks every 100 ms
-    sleep_ms(250); // Delay to ensure multiple consecutive clicks are taken into account correctly (the forces sum up)
+    sleep_ms(25); // Delay to ensure multiple consecutive clicks are taken into account correctly (the forces sum up)
 
     do{
         FD_ZERO(&rfds);
         FD_SET(fd_key, &rfds);
+        // Reset timeout before each select call (select modifies tv)
+        tv.tv_sec = 0;
+        tv.tv_usec = 10000;
         retval = select(nfds, &rfds, NULL, NULL, &tv); // Returns only if a key has been pressed
         if(retval == -1){
+            // EINTR means the call was interrupted by a signal (e.g., SIGALRM for heartbeat)
+            // This is normal and we should just retry the select 
+            // (since select is one of those functions that doesn't automatically restart even with SA_RESTART set)
+            if(errno == EINTR){
+                continue; // Retry select
+            }
+            // For other errors, log and exit
             log_error("application.log", "DRONE", "select", log_sem);
-            perror("select");
+            perror("FUNCTIONS.C line-330 select");
             exit(EXIT_FAILURE);
         }
         else if(retval > 0 && FD_ISSET(fd_key, &rfds)){
@@ -331,9 +415,11 @@ void move_drone(int fd_key, int fd_npos,DroneMsg* drone_msg, int next_drone_pos[
             n = read(fd_key,&received_key,1);
             if(n > 0){
                 if(received_key == 'q'){
+                    // Return to main loop to handle quit properly
                     drone_msg->type = MSG_QUIT;
                     write(fd_npos,drone_msg,sizeof(*drone_msg));
-                    exit(EXIT_SUCCESS);
+                    drain_pipe(fd_key); // Clear any pending keys
+                    return 1; // Signal quit to main loop
                 }
                 delay = 40;
                 control = 0;
@@ -359,10 +445,16 @@ void move_drone(int fd_key, int fd_npos,DroneMsg* drone_msg, int next_drone_pos[
                     force_x = force_x + oblique_force_comp;
                     force_y = force_y + oblique_force_comp;
                     break;
+                case 'o': 
+                    // Artificial key sent when client obstacle position updated, but drone didn't move
+                    // Just check for collision without moving the drone
+                    force_x = force_x; 
+                    force_y = force_y;
+                    break;
                 case 'd':
                     drone_msg->type = MSG_STOP;
                     write(fd_npos,drone_msg,sizeof(*drone_msg));
-                    return;
+                    return 0;
                 default:
                     break;
                 }
@@ -536,7 +628,7 @@ void move_drone(int fd_key, int fd_npos,DroneMsg* drone_msg, int next_drone_pos[
             drone_msg->type = MSG_STOP;
             write(fd_npos,drone_msg,sizeof(*drone_msg));
             drain_pipe(fd_key);
-            return;
+            return 0;
         }
         // Delay inserted to simulate a smoother slow down
         if(control == 4) delay = 70;
@@ -553,7 +645,7 @@ void move_drone(int fd_key, int fd_npos,DroneMsg* drone_msg, int next_drone_pos[
     drone_msg->type = MSG_STOP;
     write(fd_npos,drone_msg,sizeof(*drone_msg));
     
-    return;
+    return 0;// Normal completion
 }
 
 // ------ used in obstcles.c & targets.c ------
@@ -621,18 +713,40 @@ int spawn(const char *prog, char *const argv[]) {
     pid_t pid = fork();
     if (pid < 0) { 
         log_error("application.log", "MASTER", "fork", NULL);
-        perror("fork"); exit(EXIT_FAILURE); 
+        perror("FUNCTIONS.C line-631 fork"); exit(EXIT_FAILURE); 
     }
     if (pid == 0) {
         execvp(prog, argv);
         log_error("application.log", "MASTER", "execvp", NULL);
-        perror("execvp"); 
+        perror("FUNCTIONS.C line-636 execvp"); 
         exit(EXIT_FAILURE);
     }
     return pid;
 }
 
-// ------ used in  master.c & input_manager.c & blackboard.c & obstacles.c & targets.c ------
+// ------ used in master.c & input_manager.c & blackboard.c & obstacles.c & targets.c ------
+
+void write_process_pid(const char* log_filename, const char* process_name,
+     pid_t pid, sem_t *log_sem){
+    time_t now = time(NULL);
+    struct tm* t = localtime(&now);
+    char time_str[64];
+    strftime(time_str, sizeof(time_str), "[%Y-%m-%d %H:%M:%S]", t);
+    char log_message[512];
+    snprintf(log_message, sizeof(log_message), "%s [%s] [%d]", time_str, process_name, (int)pid);
+
+    // Ensure exclusive access to the log file
+    sem_wait(log_sem);
+    FILE* log_file = fopen(log_filename, "a"); // Append mode -> seek end of file
+    if(!log_file){
+        perror("FUNCTIONS.C line-657 fopen");
+        exit(EXIT_FAILURE);
+    }
+    fprintf(log_file, "%s\n", log_message);
+    fflush(log_file); // Ensure data is written to file
+    fclose(log_file);
+    sem_post(log_sem);
+}
 
 void write_log(const char* log_filename, const char* process_name,
      const char* level, const char* message, sem_t *log_sem){
@@ -647,7 +761,7 @@ void write_log(const char* log_filename, const char* process_name,
     sem_wait(log_sem);
     FILE* log_file = fopen(log_filename, "a"); // Append mode -> seek end of file
     if(!log_file){
-        perror("fopen");
+        perror("FUNCTIONS.C line-679 fopen");
         exit(EXIT_FAILURE);
     }
     fprintf(log_file, "%s\n", log_message);
@@ -684,7 +798,7 @@ void setup_heartbeat_itimer(int interval_sec) {
     timer.it_value.tv_sec = interval_sec;
     timer.it_value.tv_usec = 0;
     if (setitimer(ITIMER_REAL, &timer, NULL) == -1) {
-        perror("setitimer");
+        perror("FUNCTIONS.C line-716 setitimer");
         // Do not exit; heartbeat is optional. Log if available.
     }
 }
@@ -703,7 +817,7 @@ int setup_heartbeat_posix_timer(int interval_sec, int signo) {
     sev.sigev_signo = signo;
     sev.sigev_value.sival_ptr = &heartbeat_timer_id;
     if (timer_create(CLOCK_REALTIME, &sev, &heartbeat_timer_id) == -1) {
-        perror("timer_create");
+        perror("FUNCTIONS.C line-735 timer_create");
         return -1;
     }
 
@@ -714,7 +828,7 @@ int setup_heartbeat_posix_timer(int interval_sec, int signo) {
     its.it_value.tv_sec = interval_sec;
     its.it_value.tv_nsec = 0;
     if (timer_settime(heartbeat_timer_id, 0, &its, NULL) == -1) {
-        perror("timer_settime");
+        perror("FUNCTIONS.C line-746 timer_settime");
         return -1;
     }
     return 0;
@@ -734,4 +848,45 @@ void send_heartbeat_if_due(int fd_watchdog, const char* process_name, sem_t *log
     }
 }
 
+// ------ used in socket_manager.c ------
 
+void analyze_position_n_size_and_prepare_message(BlackboardMsg positions,char* buffer_output, int wind_H){
+    if(positions.type == MSG_WSIZE) {
+        // Window size to send to client
+        snprintf(buffer_output, 256, "size %d, %d\n", positions.border_y + 7, positions.border_x + 7);
+    }
+    else if(positions.type == MSG_NPOS) {
+        // New drone position to send to client
+        snprintf(buffer_output, 256, "%d, %d\n", wind_H - positions.drone_y, positions.drone_x);
+    } 
+    else {
+        log_error("application.log", "SOCKET_MANAGER", "Unknown message type received by blackboard", NULL);
+    }
+}
+
+void error(int newsockfd, int sockfd, const char *msg, sem_t *log_sem) {
+    write_log("application.log", "SOCKET_MANAGER", "ERROR", msg, log_sem);
+    if(newsockfd != -1)
+        close(newsockfd);
+    close(sockfd);
+    exit(EXIT_FAILURE);
+}
+
+ssize_t read_line(int fd, char *buf, size_t maxlen) {
+    size_t i = 0;
+    char c;
+
+    while (i < maxlen - 1) {
+        ssize_t n = read(fd, &c, 1);
+        if (n == 1) {
+            buf[i++] = c;
+            if (c == '\n') break;
+        } else if (n == 0) {
+            return 0;   // connection closed
+        } else {
+            return -1;  // error
+        }
+    }
+    buf[i] = '\0';
+    return i;
+}

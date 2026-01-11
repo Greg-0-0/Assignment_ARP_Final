@@ -9,9 +9,13 @@ int main(int argc, char * argv[]){
   
     sem_t *log_sem = sem_open("/log_sem", 0);// Open existing semaphore for logging
     if (log_sem == SEM_FAILED) {
-        perror("sem_open");
+        perror("TARGETS line-12 sem_open");
         exit(EXIT_FAILURE);
     }
+
+    // Process identification logging
+    pid_t pid = getpid();
+    write_process_pid("processes.log", "TARGETS", pid, log_sem);
 
     //Process started successfully
     write_log("application.log", "TARGETS", "INFO", "Targets process started successfully", log_sem);
@@ -28,12 +32,27 @@ int main(int argc, char * argv[]){
     // Heartbeat using SIGALRM + ITIMER (sigaction with SA_RESTART inside)
     setup_heartbeat_itimer(1);
 
+    // Make fd_new_pos non-blocking to allow heartbeat sending while waiting for data
+    int pos_flags = fcntl(fd_new_pos, F_GETFL, 0);
+    if(pos_flags < 0){
+        perror("TARGETS line-38 fcntl F_GETFL");
+        exit(EXIT_FAILURE);
+    }
+    pos_flags |= O_NONBLOCK;
+    if(fcntl(fd_new_pos, F_SETFL, pos_flags) < 0){
+        perror("TARGETS line-43 fcntl F_SETFL");
+        exit(EXIT_FAILURE);
+    }
+
     while(1){
 
         // Heartbeat if due
         send_heartbeat_if_due(fd_hb_watchdog, "TARGETS", log_sem);
 
         ssize_t n = read_full(fd_new_pos,&positions,sizeof(positions));
+        
+        // Heartbeat after blocking read
+        send_heartbeat_if_due(fd_hb_watchdog, "TARGETS", log_sem);
         // The call may read bytes not belonging to the same struct (BlackboardMsg), due to race conditions on pipe creating junk inside the pipe,
         // or sending different struct on the same pipe.
         // Just to be clear my code doesn't seem to cause these race conditions, neither it uses the same file descriptors to send different type of structures,
@@ -42,6 +61,12 @@ int main(int argc, char * argv[]){
         // which of course is quite odd, other than frustrating, since it shouldn't have fixed the issue.
         // This happens because the error itself is an event, I would say, completely unpredictable, that depends on the integrity of pipes themself,
         // which, unfortunatley, I am forced to use.
+        
+        if(n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)){
+            // No data available, sleep briefly to avoid busy-waiting
+            sleep_ms(50); // 50ms
+            continue;
+        }
         
         if(n > 0){
             if(positions.type == MSG_QUIT){
@@ -61,10 +86,19 @@ int main(int argc, char * argv[]){
             }
 
             write(fd_new_trs,&positions,sizeof(positions));
+            
+            // Heartbeat after processing and writing
+            send_heartbeat_if_due(fd_hb_watchdog, "TARGETS", log_sem);
         }
-        else{
+        else if(n == 0){
+            // Pipe closed
+            write_log("application.log", "TARGETS", "WARNING", "Pipe closed", log_sem);
+            exit(EXIT_SUCCESS);
+        }
+        else if(n < 0){
+            // Real error (not EAGAIN which was already handled)
             log_error("application.log", "TARGETS", "read targets", log_sem);
-            perror("read targets");
+            perror("TARGETS line-101read targets");
             exit(EXIT_FAILURE);
         }
 

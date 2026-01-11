@@ -10,7 +10,7 @@ LIBS    = -lncurses -lm -lrt
 COMMON  = functions.c
 
 # Executables to build
-TARGETS = master blackboard drone input_manager obstacles targets watchdog
+TARGETS = master blackboard drone input_manager obstacles targets watchdog blackboardserver blackboardclient socket_manager
 
 # Default target
 all: $(TARGETS)
@@ -41,6 +41,15 @@ targets: targets.c $(COMMON)
 
 watchdog: watchdog.c $(COMMON)
 	$(CC) $(CFLAGS) watchdog.c $(COMMON) -o watchdog $(LIBS)
+
+blackboardserver: blackboardserver.c $(COMMON)
+	$(CC) $(CFLAGS) blackboardserver.c $(COMMON) -o blackboardserver $(LIBS)
+
+blackboardclient: blackboardclient.c $(COMMON)
+	$(CC) $(CFLAGS) blackboardclient.c $(COMMON) -o blackboardclient $(LIBS)
+
+socket_manager: socket_manager.c $(COMMON)
+	$(CC) $(CFLAGS) socket_manager.c $(COMMON) -o socket_manager $(LIBS)
 
 # ----------------------------
 #   UTILITY TARGETS
