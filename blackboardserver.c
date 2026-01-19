@@ -164,7 +164,6 @@ int main(int argc, char* argv[]) {
                 wattron(win, COLOR_PAIR(3));
                 mvwaddch(win,positions.obstacles[0][0],positions.obstacles[0][1],'o'); // Drawing client drone at new position
                 wattroff(win, COLOR_PAIR(3));
-                mvwprintw(win,H/2 + 7,W/2,"Client Drone Pos: (%d, %d) ", positions.obstacles[0][0], positions.obstacles[0][1]);
                 wrefresh(win);
 
                 // Sending artificial key to input manager to trigger obstacle repulsion handling,
@@ -278,7 +277,6 @@ int main(int argc, char* argv[]) {
                         wattron(win, COLOR_PAIR(3));
                         mvwaddch(win,positions.obstacles[0][0],positions.obstacles[0][1],'o'); // Drawing client drone at new position
                         wattroff(win, COLOR_PAIR(3));
-                        mvwprintw(win,H/2 + 7,W/2,"Client Drone Pos: (%d, %d) ", positions.obstacles[0][0], positions.obstacles[0][1]);
                         wrefresh(win);
 
                         // Sending artificial key to input manager to trigger obstacle repulsion handling,

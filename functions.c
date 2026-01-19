@@ -852,12 +852,16 @@ void send_heartbeat_if_due(int fd_watchdog, const char* process_name, sem_t *log
 
 void analyze_position_n_size_and_prepare_message(BlackboardMsg positions,char* buffer_output, int wind_H){
     if(positions.type == MSG_WSIZE) {
-        // Window size to send to client
-        snprintf(buffer_output, 256, "size %d, %d\n", positions.border_y + 7, positions.border_x + 7);
+        // Window size sent as width, height
+        const int width = positions.border_x + 7;  // Stored value is border width (cols) without margins
+        const int height = positions.border_y + 7; // Stored value is border height (rows) without margins
+        snprintf(buffer_output, 256, "size %d, %d\n", width, height);
     }
     else if(positions.type == MSG_NPOS) {
-        // New drone position to send to client
-        snprintf(buffer_output, 256, "%d, %d\n", wind_H - positions.drone_y, positions.drone_x);
+        // Drone position sent as x, y (after converting y to bottom-left frame expected on the wire)
+        const int x = positions.drone_x;
+        const int y = wind_H - positions.drone_y; // Convert from top-left origin to bottom-left
+        snprintf(buffer_output, 256, "%d, %d\n", x, y);
     } 
     else {
         log_error("application.log", "SOCKET_MANAGER", "Unknown message type received by blackboard", NULL);

@@ -115,11 +115,31 @@ int main(int argc, char* argv[]) {
         // Error in receiving window size
         write_log("application.log", "BLACKBOARD", "ERROR", "Error receiving window size from socket manager", log_sem);
         exit(EXIT_FAILURE);
-    }   
+    }
+
+    //-----
+
+    // Normalize received size: protocol is width,height; tolerate swapped or oversized values from external apps
+    int win_w = positions_sm.border_x; // width (cols)
+    int win_h = positions_sm.border_y; // height (rows)
+    int term_h = 0, term_w = 0;
+    getmaxyx(stdscr, term_h, term_w);
+
+    // If dimensions look swapped and swapping would fit, swap
+    if((win_w > term_w || win_h > term_h) && win_h <= term_w && win_w <= term_h){
+        int tmp = win_w; win_w = win_h; win_h = tmp;
+    }
+    // Clamp to terminal bounds to avoid ncurses resize errors
+    if(win_w > term_w) win_w = term_w;
+    if(win_h > term_h) win_h = term_h;
+    if(win_w < 3) win_w = (term_w >= 3) ? term_w : 3;
+    if(win_h < 3) win_h = (term_h >= 3) ? term_h : 3;
+
+    //-----
 
     // Window with temporary dimensions
     WINDOW *win = newwin(3, 3, 0, 0);
-    layout_and_draw_for_networked_app(win, 1, positions_sm.border_y, positions_sm.border_x); // Client mode
+    layout_and_draw_for_networked_app(win, 1, win_h, win_w); // Client mode
     getmaxyx(win, H, W);
 
     // Initial drone position
@@ -157,7 +177,6 @@ int main(int argc, char* argv[]) {
                 wattron(win, COLOR_PAIR(3));
                 mvwaddch(win,positions_sm.drone_y,positions_sm.drone_x,'o'); // Drawing server drone at new position
                 wattroff(win, COLOR_PAIR(3));
-                mvwprintw(win,H/2 + 7,W/2,"Server Drone Pos: (%d, %d) ", positions_sm.drone_y, positions_sm.drone_x);
                 wrefresh(win);
             }
         }
@@ -245,7 +264,6 @@ int main(int argc, char* argv[]) {
                         wattron(win, COLOR_PAIR(3));
                         mvwaddch(win,positions_sm.drone_y,positions_sm.drone_x,'o'); // Drawing server drone at new position
                         wattroff(win, COLOR_PAIR(3));
-                        mvwprintw(win,H/2 + 7,W/2,"Server Drone Pos: (%d, %d) ", positions_sm.drone_y, positions_sm.drone_x);
                         wrefresh(win);
                     }
                 }
