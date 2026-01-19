@@ -273,8 +273,10 @@ int main(int argc, char* argv[]) {
                     close(sockfd);
                     exit(EXIT_FAILURE);
                 }
-                sscanf(buffer_input, "%d, %d", &positions.drone_y, &positions.drone_x);
-                positions.drone_y = wind_H - positions.drone_y; // Converting to local coordinate system
+                int obs_x = 0, obs_y = 0;
+                sscanf(buffer_input, "%d, %d", &obs_x, &obs_y); // x, y on the wire
+                positions.drone_x = obs_x;
+                positions.drone_y = wind_H - obs_y; // Convert back from bottom-left to top-left origin
                 positions.type = MSG_NPOS; // Signaling blackboard that this is an obstacle position
                 write(fd_to_bb, &positions, sizeof(positions)); // Sending obstacle position to blackboard // DEBUG: doesn't fire
 
@@ -394,13 +396,13 @@ int main(int argc, char* argv[]) {
             error(-1, sockfd, "Error writing acknowledgment to socket", log_sem);
         }
 
-        // Parsing window size
-        int w_h, w_w;
-        sscanf(buffer_input, "size %d, %d", &w_h, &w_w);
+        // Parsing window size (width, height)
+        int win_w = 0, win_h = 0;
+        sscanf(buffer_input, "size %d, %d", &win_w, &win_h);
         positions.type = MSG_WSIZE;
-        positions.border_y = w_h; // Actual window height, not boreder height
-        positions.border_x = w_w; // Actual window width, not border width
-        wind_H = w_h; // Storing window height for coordinate conversions
+        positions.border_x = win_w; // Width (cols)
+        positions.border_y = win_h; // Height (rows)
+        wind_H = win_h; // Storing window height for coordinate conversions
         write(fd_to_bb, &positions, sizeof(positions)); // Sending window size to blackboard
 
         // Communication loop with server (reads/writes)
@@ -442,8 +444,10 @@ int main(int argc, char* argv[]) {
                     exit(EXIT_FAILURE);
                 }
 
-                sscanf(buffer_input, "%d, %d", &positions.drone_y, &positions.drone_x);
-                positions.drone_y = wind_H - positions.drone_y; // Converting to local coordinate system
+                int srv_x = 0, srv_y = 0;
+                sscanf(buffer_input, "%d, %d", &srv_x, &srv_y); // x, y on the wire
+                positions.drone_x = srv_x;
+                positions.drone_y = wind_H - srv_y; // Convert back from bottom-left to top-left origin
                 positions.type = MSG_NPOS; // Signaling blackboard that this is drone position
 
                 write(fd_to_bb_2, &positions, sizeof(positions)); // Sending drone position to blackboard
@@ -466,11 +470,14 @@ int main(int argc, char* argv[]) {
 
                 // Read obstacle position from blackboard
                 read(fd_from_bb, &positions, sizeof(positions));
-                positions.drone_y = wind_H - positions.drone_y; // Converting to virtual coordinate system
+
+                // Convert to virtual coordinates expected on the wire (x, y)
+                const int obs_x = positions.drone_x;
+                const int obs_y_virtual = wind_H - positions.drone_y;
 
                 // Send obstacle position to server
                 memset(buffer_output, 0, 256);
-                snprintf(buffer_output, 256, "%d, %d\n", positions.drone_y, positions.drone_x);
+                snprintf(buffer_output, 256, "%d, %d\n", obs_x, obs_y_virtual);
                 n = write(sockfd, buffer_output, strlen(buffer_output));
                 if (n < 0) {
                     perror("SOCKET_MANAGER writing obstacle position to socket");
