@@ -405,6 +405,14 @@ int main(int argc, char* argv[]) {
         wind_H = win_h; // Storing window height for coordinate conversions
         write(fd_to_bb, &positions, sizeof(positions)); // Sending window size to blackboard
 
+        // ----
+
+        char msg_log[512];
+        snprintf(msg_log, 512, "Received window size from server: width=%d, height=%d", win_w, win_h);
+        write_log("application.log", "SOCKET_MANAGER", "INFO", msg_log, log_sem);
+
+        // ----
+
         // Communication loop with server (reads/writes)
         while(1){
             // Wait for message from server
