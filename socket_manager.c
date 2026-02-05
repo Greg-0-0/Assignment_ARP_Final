@@ -33,6 +33,8 @@ int main(int argc, char* argv[]) {
     if(server_client_flag == 1){
         // Server mode
 
+        write_log("application.log", "SOCKET_MANAGER", "INFO", "Socket Manager opened in server mode", log_sem);
+
         // Non-blocking write to blackboard (used only to send new obstacle position)
         int to_bb_flags = fcntl(fd_to_bb, F_GETFL, 0);
         if(to_bb_flags >= 0){
@@ -74,9 +76,13 @@ int main(int argc, char* argv[]) {
             exit(EXIT_FAILURE);
         }
 
+        write_log("application.log", "SOCKET_MANAGER", "INFO", "Socket Manager bound to port", log_sem);
+
         // Listening for connection
         listen(sockfd,5);
         clilen = sizeof(cli_addr);
+
+        write_log("application.log", "SOCKET_MANAGER", "INFO", "Client connection listening started", log_sem);
 
         // Main server loop to accept connections
         while(1){
@@ -114,6 +120,8 @@ int main(int argc, char* argv[]) {
                 exit(EXIT_FAILURE);
             }
 
+            write_log("application.log", "SOCKET_MANAGER", "INFO", "Client connection accepted", log_sem);
+
             // Disable Nagle's algorithm to prevent message coalescing
             int flag = 1;
             if (setsockopt(newsockfd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag)) < 0) {
@@ -122,13 +130,15 @@ int main(int argc, char* argv[]) {
             }
 
             // Send first message to client to confirm connection
-            memset(buffer_output, 0, 256);
-            snprintf(buffer_output, 256, "ok\n");
+            memset(buffer_output, 0, sizeof(buffer_output));
+            snprintf(buffer_output, sizeof(buffer_output), "ok\n");
             int n = write(newsockfd, buffer_output, strlen(buffer_output));
             if (n < 0) {
                 perror("SOCKET_MANAGER writing to socket");
                 error(newsockfd, sockfd, "Error writing to socket", log_sem);
             }
+
+            write_log("application.log", "SOCKET_MANAGER", "INFO", "Sent initial message to client", log_sem);
 
             // Wait for acknowledgment from client
             int ook_ret = read_line(newsockfd, buffer_input, sizeof(buffer_input));
@@ -151,7 +161,7 @@ int main(int argc, char* argv[]) {
 
             // Send window size
             read(fd_from_bb, &positions, sizeof(positions)); // Retrieving window size from blackboard
-            memset(buffer_output, 0, 256);
+            memset(buffer_output, 0, sizeof(buffer_output));
             analyze_position_n_size_and_prepare_message(positions, buffer_output, -1); // wind_H not needed here
             n = write(newsockfd, buffer_output, strlen(buffer_output));
             if (n < 0) {
@@ -159,12 +169,30 @@ int main(int argc, char* argv[]) {
                 error(newsockfd, sockfd, "Error writing window size to socket", log_sem);
             }
 
+            char log_msg[256];
+            snprintf(log_msg, sizeof(log_msg), "Sent window size to client: %s", buffer_output);
+            write_log("application.log", "SOCKET_MANAGER", "INFO", log_msg, log_sem);
+
             // Store window height for coordinate conversions
             wind_H = positions.border_y + 7;
 
             // Wait for acknowledgment from client
-            memset(buffer_input, 0, 256);
-            int sok_ret = read_line(newsockfd, buffer_input, 255);
+            memset(buffer_input, 0, sizeof(buffer_input));
+            // Use read_line which handles both \n and \0 terminators
+            int sok_ret = read_line(newsockfd, buffer_input, sizeof(buffer_input));
+            
+            // Log what we received for debugging
+            char debug_msg[512];
+            snprintf(debug_msg, sizeof(debug_msg), "Received sok ack: ret=%d, first 10 bytes: [%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x], string='%s'",
+                     sok_ret, 
+                     (unsigned char)buffer_input[0], (unsigned char)buffer_input[1], 
+                     (unsigned char)buffer_input[2], (unsigned char)buffer_input[3],
+                     (unsigned char)buffer_input[4], (unsigned char)buffer_input[5],
+                     (unsigned char)buffer_input[6], (unsigned char)buffer_input[7],
+                     (unsigned char)buffer_input[8], (unsigned char)buffer_input[9],
+                     buffer_input);
+            write_log("application.log", "SOCKET_MANAGER", "DEBUG", debug_msg, log_sem);
+            
             if(sok_ret == 0) {
                 write_log("application.log", "SOCKET_MANAGER", "INFO", "Client disconnected after window size", log_sem);
                 close(newsockfd);
@@ -176,8 +204,10 @@ int main(int argc, char* argv[]) {
                 close(sockfd);
                 exit(EXIT_FAILURE);
             }
-            if(strncmp(buffer_input, "sok", 3) != 0)
+            if(strncmp(buffer_input, "sok", 3) != 0){
+                write_log("application.log", "SOCKET_MANAGER", "INFO", buffer_input, log_sem);
                 error(newsockfd, sockfd, "Invalid acknowledgment for window size from client", log_sem);
+            }
 
             // Communication loop with client (reads/writes)
             while(1){
@@ -188,11 +218,11 @@ int main(int argc, char* argv[]) {
                     // Quitting socket manager
 
                     // Notify client about termination
-                    snprintf(buffer_output, 256, "q\n");
+                    snprintf(buffer_output, sizeof(buffer_output), "q\n");
                     write(newsockfd, buffer_output, strlen(buffer_output));
 
                     // Wait for acknowledgment from client
-                    memset(buffer_input, 0, 256);
+                    memset(buffer_input, 0, sizeof(buffer_input));
                     int qok_ret = read_line(newsockfd, buffer_input, sizeof(buffer_input));
                     if(qok_ret == 0) {
                         write_log("application.log", "SOCKET_MANAGER", "INFO", "Client disconnected after window size", log_sem);
@@ -215,8 +245,8 @@ int main(int argc, char* argv[]) {
                 }
 
                 // Notify client about new position available
-                memset(buffer_output, 0, 256);
-                snprintf(buffer_output, 256, "drone\n");
+                memset(buffer_output, 0, sizeof(buffer_output));
+                snprintf(buffer_output, sizeof(buffer_output), "drone\n");
                 n = write(newsockfd, buffer_output, strlen(buffer_output));
                 if (n < 0) {
                     perror("SOCKET_MANAGER writing drone position to socket");
@@ -224,7 +254,7 @@ int main(int argc, char* argv[]) {
                 }
 
                 // Send new drone position
-                memset(buffer_output, 0, 256);
+                memset(buffer_output, 0, sizeof(buffer_output));
                 analyze_position_n_size_and_prepare_message(positions, buffer_output, wind_H);
 
                 n = write(newsockfd, buffer_output, strlen(buffer_output));
@@ -234,7 +264,7 @@ int main(int argc, char* argv[]) {
                 }
 
                 // Wait for acknowledgment from client
-                memset(buffer_input, 0, 256);
+                memset(buffer_input, 0, sizeof(buffer_input));
                 int dok_ret = read_line(newsockfd, buffer_input, sizeof(buffer_input));
                 if(dok_ret == 0) {
                     write_log("application.log", "SOCKET_MANAGER", "INFO", "Client disconnected after drone position", log_sem);
@@ -251,8 +281,8 @@ int main(int argc, char* argv[]) {
                     error(newsockfd, sockfd, "Invalid acknowledgment for drone position from client", log_sem);
 
                 // Request for obstacle position from client
-                memset(buffer_output, 0, 256);
-                snprintf(buffer_output, 256, "obst\n");
+                memset(buffer_output, 0, sizeof(buffer_output));
+                snprintf(buffer_output, sizeof(buffer_output), "obst\n");
                 n = write(newsockfd, buffer_output, strlen(buffer_output));
                 if (n < 0) {
                     perror("SOCKET_MANAGER requesting obstacle position from socket");
@@ -260,7 +290,7 @@ int main(int argc, char* argv[]) {
                 }
 
                 // Wait for obstacle position from client
-                memset(buffer_input, 0, 256);
+                memset(buffer_input, 0, sizeof(buffer_input));
                 int obst_pos = read_line(newsockfd, buffer_input, sizeof(buffer_input));
                 if(obst_pos == 0) {
                     write_log("application.log", "SOCKET_MANAGER", "INFO", "Client disconnected while sending obstacle position", log_sem);
@@ -281,8 +311,8 @@ int main(int argc, char* argv[]) {
                 write(fd_to_bb, &positions, sizeof(positions)); // Sending obstacle position to blackboard // DEBUG: doesn't fire
 
                 // Send acknowledgment to client
-                memset(buffer_output, 0, 256);
-                snprintf(buffer_output, 256, "pok\n");
+                memset(buffer_output, 0, sizeof(buffer_output));
+                snprintf(buffer_output, sizeof(buffer_output), "pok\n");
                 n = write(newsockfd, buffer_output, strlen(buffer_output));
                 if (n < 0) {
                     perror("SOCKET_MANAGER sending acknowledgment to socket");
@@ -367,8 +397,8 @@ int main(int argc, char* argv[]) {
             error(-1, sockfd, "Invalid initial message from server", log_sem);
         
         // Send acknowledgment to server
-        memset(buffer_output, 0, 256);
-        snprintf(buffer_output, 256, "ook\n");
+        memset(buffer_output, 0, sizeof(buffer_output));
+        snprintf(buffer_output, sizeof(buffer_output), "ook\n");
         n = write(sockfd, buffer_output, strlen(buffer_output));
         if (n < 0) {
             perror("SOCKET_MANAGER writing acknowledgment to socket");
@@ -380,7 +410,7 @@ int main(int argc, char* argv[]) {
 
         // Receive window size from server
         memset(buffer_input, 0, 256);
-        if(read_line(sockfd, buffer_input, 255) <= 0) {
+        if(read_line(sockfd, buffer_input, sizeof(buffer_input)) <= 0) {
             error(-1, sockfd, "Error line 288 reading from socket", log_sem);
             exit(EXIT_FAILURE);
         }
@@ -388,8 +418,8 @@ int main(int argc, char* argv[]) {
             error(-1, sockfd, "Invalid window size message from server", log_sem);
 
         // Send acknowledgment to server
-        memset(buffer_output, 0, 256);
-        snprintf(buffer_output, 256, "sok\n");
+        memset(buffer_output, 0, sizeof(buffer_output));
+        snprintf(buffer_output, sizeof(buffer_output), "sok\n");
         n = write(sockfd, buffer_output, strlen(buffer_output));
         if (n < 0) {
             perror("SOCKET_MANAGER writing acknowledgment to socket");
@@ -416,7 +446,7 @@ int main(int argc, char* argv[]) {
         // Communication loop with server (reads/writes)
         while(1){
             // Wait for message from server
-            memset(buffer_input, 0, 256);
+            memset(buffer_input, 0, sizeof(buffer_input));
             if(read_line(sockfd, buffer_input, sizeof(buffer_input)) <= 0) {
                 error(-1, sockfd, "Error line 317 reading from socket", log_sem);
                 exit(EXIT_FAILURE);
@@ -425,8 +455,8 @@ int main(int argc, char* argv[]) {
                 // Quitting socket manager
 
                 // Send acknowledgment to server
-                memset(buffer_output, 0, 256);
-                snprintf(buffer_output, 256, "qok\n");
+                memset(buffer_output, 0, sizeof(buffer_output));
+                snprintf(buffer_output, sizeof(buffer_output), "qok\n");
                 n = write(sockfd, buffer_output, strlen(buffer_output));
                 if (n < 0) {
                     perror("SOCKET_MANAGER writing acknowledgment to socket");
@@ -447,7 +477,7 @@ int main(int argc, char* argv[]) {
                 // Read drone position
                 memset(buffer_input, 0, 256);
 
-                if(read_line(sockfd, buffer_input, 255) <= 0) {
+                if(read_line(sockfd, buffer_input, sizeof(buffer_input)) <= 0) {
                     error(-1, sockfd, "Error line 347 reading from socket", log_sem);
                     exit(EXIT_FAILURE);
                 }
@@ -461,8 +491,8 @@ int main(int argc, char* argv[]) {
                 write(fd_to_bb_2, &positions, sizeof(positions)); // Sending drone position to blackboard
 
                 // Send acknowledgment to server
-                memset(buffer_output, 0, 256);
-                snprintf(buffer_output, 256, "dok\n");
+                memset(buffer_output, 0, sizeof(buffer_output));
+                snprintf(buffer_output, sizeof(buffer_output), "dok\n");
                 n = write(sockfd, buffer_output, strlen(buffer_output));
                 if (n < 0) {
                     perror("SOCKET_MANAGER writing acknowledgment to socket");
@@ -484,8 +514,8 @@ int main(int argc, char* argv[]) {
                 const int obs_y_virtual = wind_H - positions.drone_y;
 
                 // Send obstacle position to server
-                memset(buffer_output, 0, 256);
-                snprintf(buffer_output, 256, "%d, %d\n", obs_x, obs_y_virtual);
+                memset(buffer_output, 0, sizeof(buffer_output));
+                snprintf(buffer_output, sizeof(buffer_output), "%d, %d\n", obs_x, obs_y_virtual);
                 n = write(sockfd, buffer_output, strlen(buffer_output));
                 if (n < 0) {
                     perror("SOCKET_MANAGER writing obstacle position to socket");
@@ -493,8 +523,8 @@ int main(int argc, char* argv[]) {
                 }
 
                 // Wait for acknowledgment from server
-                memset(buffer_input, 0, 256);
-                if(read_line(sockfd, buffer_input, 255) <= 0) {
+                memset(buffer_input, 0, sizeof(buffer_input));
+                if(read_line(sockfd, buffer_input, sizeof(buffer_input)) <= 0) {
                     error(-1, sockfd, "Error line 389 reading from socket", log_sem);
                     exit(EXIT_FAILURE);
                 }

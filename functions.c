@@ -884,7 +884,7 @@ ssize_t read_line(int fd, char *buf, size_t maxlen) {
         ssize_t n = read(fd, &c, 1);
         if (n == 1) {
             buf[i++] = c;
-            if (c == '\n') break;
+            if (c == '\n' || c == '\0') break;
         } else if (n == 0) {
             return 0;   // connection closed
         } else {
