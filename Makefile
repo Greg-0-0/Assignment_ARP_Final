@@ -56,6 +56,6 @@ socket_manager: socket_manager.c $(COMMON)
 # ----------------------------
 
 clean:
-	rm -f $(TARGETS) *.o
+	rm -f $(TARGETS) *.o *.log
 
 .PHONY: all clean

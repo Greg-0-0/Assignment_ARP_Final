@@ -147,7 +147,7 @@ void layout_and_draw_for_networked_app(WINDOW *win, int server_client_flag, int 
     refresh();
     wrefresh(win);
 
-    draw_rect(win,6,6,H-7,W-7,1);
+    //draw_rect(win,6,6,H-7,W-7,1);
 }
 
 void change_obstacle_position_flag(){
@@ -855,13 +855,14 @@ void analyze_position_n_size_and_prepare_message(BlackboardMsg positions,char* b
         // Window size sent as width, height
         const int width = positions.border_x + 7;  // Stored value is border width (cols) without margins
         const int height = positions.border_y + 7; // Stored value is border height (rows) without margins
-        snprintf(buffer_output, 256, "size %d, %d\n", width, height);
+        snprintf(buffer_output, 256, "size %d, %d", width, height);
     }
     else if(positions.type == MSG_NPOS) {
         // Drone position sent as x, y (after converting y to bottom-left frame expected on the wire)
         const int x = positions.drone_x;
-        const int y = wind_H - positions.drone_y; // Convert from top-left origin to bottom-left
-        snprintf(buffer_output, 256, "%d, %d\n", x, y);
+        const int y = positions.drone_y; // Convert from top-left origin to bottom-left
+        //const int y = wind_H - positions.drone_y; // Convert from top-left origin to bottom-left
+        snprintf(buffer_output, 256, "%d, %d", x, y);
     } 
     else {
         log_error("application.log", "SOCKET_MANAGER", "Unknown message type received by blackboard", NULL);

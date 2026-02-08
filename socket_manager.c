@@ -131,7 +131,7 @@ int main(int argc, char* argv[]) {
 
             // Send first message to client to confirm connection
             memset(buffer_output, 0, sizeof(buffer_output));
-            snprintf(buffer_output, sizeof(buffer_output), "ok\n");
+            snprintf(buffer_output, sizeof(buffer_output), "ok");
             int n = write(newsockfd, buffer_output, strlen(buffer_output) + 1); // Include null terminator to ensure client can detect end of message
             if (n < 0) {
                 perror("SOCKET_MANAGER writing to socket");
@@ -169,7 +169,7 @@ int main(int argc, char* argv[]) {
                 error(newsockfd, sockfd, "Error writing window size to socket line 169", log_sem);
             }
 
-            char log_msg[256];
+            char log_msg[284];
             snprintf(log_msg, sizeof(log_msg), "Sent window size to client: %s", buffer_output);
             write_log("application.log", "SOCKET_MANAGER", "INFO", log_msg, log_sem);
 
@@ -220,7 +220,7 @@ int main(int argc, char* argv[]) {
                     // Quitting socket manager
 
                     // Notify client about termination
-                    snprintf(buffer_output, sizeof(buffer_output), "q\n");
+                    snprintf(buffer_output, sizeof(buffer_output), "q");
                     write(newsockfd, buffer_output, strlen(buffer_output) + 1); // Include null terminator to ensure client can detect end of message
 
                     // Wait for acknowledgment from client
@@ -248,7 +248,7 @@ int main(int argc, char* argv[]) {
 
                 // Notify client about new position available
                 memset(buffer_output, 0, sizeof(buffer_output));
-                snprintf(buffer_output, sizeof(buffer_output), "drone\n");
+                snprintf(buffer_output, sizeof(buffer_output), "drone");
                 n = write(newsockfd, buffer_output, strlen(buffer_output) + 1); // Include null terminator to ensure client can detect end of message
                 if (n < 0) {
                     perror("SOCKET_MANAGER writing drone position to socket");
@@ -290,7 +290,7 @@ int main(int argc, char* argv[]) {
 
                 // Request for obstacle position from client
                 memset(buffer_output, 0, sizeof(buffer_output));
-                snprintf(buffer_output, sizeof(buffer_output), "obst\n");
+                snprintf(buffer_output, sizeof(buffer_output), "obst");
                 n = write(newsockfd, buffer_output, strlen(buffer_output) + 1); // Include null terminator to ensure client can detect end of message
                 if (n < 0) {
                     perror("SOCKET_MANAGER requesting obstacle position from socket");
@@ -325,7 +325,7 @@ int main(int argc, char* argv[]) {
 
                 // Send acknowledgment to client
                 memset(buffer_output, 0, sizeof(buffer_output));
-                snprintf(buffer_output, sizeof(buffer_output), "pok\n");
+                snprintf(buffer_output, sizeof(buffer_output), "pok");
                 n = write(newsockfd, buffer_output, strlen(buffer_output) + 1); // Include null terminator to ensure client can detect end of message
                 if (n < 0) {
                     perror("SOCKET_MANAGER sending acknowledgment to socket");
@@ -417,7 +417,7 @@ int main(int argc, char* argv[]) {
         
         // Send acknowledgment to server
         memset(buffer_output, 0, sizeof(buffer_output));
-        snprintf(buffer_output, sizeof(buffer_output), "ook\n");
+        snprintf(buffer_output, sizeof(buffer_output), "ook");
         n = write(sockfd, buffer_output, strlen(buffer_output) + 1); // Include null terminator to ensure server can detect end of message
         if (n < 0) {
             perror("SOCKET_MANAGER writing acknowledgment to socket");
@@ -440,7 +440,7 @@ int main(int argc, char* argv[]) {
 
         // Send acknowledgment to server
         memset(buffer_output, 0, sizeof(buffer_output));
-        snprintf(buffer_output, sizeof(buffer_output), "sok\n");
+        snprintf(buffer_output, sizeof(buffer_output), "sok");
         n = write(sockfd, buffer_output, strlen(buffer_output) + 1); // Include null terminator to ensure server can detect end of message
         if (n < 0) {
             perror("SOCKET_MANAGER writing acknowledgment to socket");
@@ -482,7 +482,7 @@ int main(int argc, char* argv[]) {
 
                 // Send acknowledgment to server
                 memset(buffer_output, 0, sizeof(buffer_output));
-                snprintf(buffer_output, sizeof(buffer_output), "qok\n");
+                snprintf(buffer_output, sizeof(buffer_output), "qok");
                 n = write(sockfd, buffer_output, strlen(buffer_output) + 1); // Include null terminator to ensure server can detect end of message
                 if (n < 0) {
                     perror("SOCKET_MANAGER writing acknowledgment to socket");
@@ -521,7 +521,7 @@ int main(int argc, char* argv[]) {
 
                 // Send acknowledgment to server
                 memset(buffer_output, 0, sizeof(buffer_output));
-                snprintf(buffer_output, sizeof(buffer_output), "dok\n");
+                snprintf(buffer_output, sizeof(buffer_output), "dok");
                 n = write(sockfd, buffer_output, strlen(buffer_output) + 1); // Include null terminator to ensure server can detect end of message
                 if (n < 0) {
                     perror("SOCKET_MANAGER writing acknowledgment to socket");
@@ -548,7 +548,7 @@ int main(int argc, char* argv[]) {
 
                 // Send obstacle position to server
                 memset(buffer_output, 0, sizeof(buffer_output));
-                snprintf(buffer_output, sizeof(buffer_output), "%d, %d\n", obs_x, obs_y_virtual);
+                snprintf(buffer_output, sizeof(buffer_output), "%d, %d", obs_x, obs_y_virtual);
                 n = write(sockfd, buffer_output, strlen(buffer_output) + 1); // Include null terminator to ensure server can detect end of message
                 if (n < 0) {
                     perror("SOCKET_MANAGER writing obstacle position to socket");
