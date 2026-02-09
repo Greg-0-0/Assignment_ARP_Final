@@ -14,6 +14,7 @@ TARGETS = master blackboard drone input_manager obstacles targets watchdog black
 
 # Default target
 all: $(TARGETS)
+	@rm -f application.log
 	@echo "Running master..."
 	./master
 
@@ -56,6 +57,6 @@ socket_manager: socket_manager.c $(COMMON)
 # ----------------------------
 
 clean:
-	rm -f $(TARGETS) *.o *.log
+	rm -f $(TARGETS) *.o *.log application.log
 
 .PHONY: all clean

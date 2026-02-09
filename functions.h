@@ -162,7 +162,7 @@ void analyze_position_n_size_and_prepare_message(BlackboardMsg positions, char* 
 // Helper function to print error message, close sockets and exit
 void error(int newsockfd, int sockfd, const char *msg, sem_t *log_sem);
 
-// Helper function to read a line (ending with '\n') from the socket, this avoids mixing messages
+// Helper function to read a line (ending with '\n' or '\0') from the socket, this avoids mixing messages
 ssize_t read_line(int fd, char *buf, size_t maxlen);
 
 #endif

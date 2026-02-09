@@ -395,6 +395,8 @@ int main(int argc, char* argv[]) {
         memcpy(&serv_addr.sin_addr.s_addr, server->h_addr_list[0], server->h_length);
         serv_addr.sin_port = htons(portno);
 
+        write_log("application.log", "SOCKET_MANAGER", "INFO", "Client socket created and server address resolved", log_sem);
+
         // Connecting to server
         if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
             write_log("application.log", "SOCKET_MANAGER", "ERROR", "Error connecting to server", log_sem);
@@ -469,122 +471,127 @@ int main(int argc, char* argv[]) {
         // Communication loop with server (reads/writes)
         while(1){
             // Wait for message from server
-            memset(buffer_input, 0, sizeof(buffer_input));
-            if(read_line(sockfd, buffer_input, sizeof(buffer_input)) <= 0) {
-                error(-1, sockfd, "Error line 317 reading from socket", log_sem);
-                exit(EXIT_FAILURE);
-            }
 
-            write_log("application.log", "SOCKET_MANAGER", "INFO", buffer_input, log_sem);
-
-            if(strncmp(buffer_input, "q", 1) == 0){
-                // Quitting socket manager
-
-                // Send acknowledgment to server
-                memset(buffer_output, 0, sizeof(buffer_output));
-                snprintf(buffer_output, sizeof(buffer_output), "qok");
-                n = write(sockfd, buffer_output, strlen(buffer_output) + 1); // Include null terminator to ensure server can detect end of message
-                if (n < 0) {
-                    perror("SOCKET_MANAGER writing acknowledgment to socket");
-                    error(-1, sockfd, "Error writing acknowledgment to socket", log_sem);
-                }
-
-                // Notify blackboard about termination
-                positions.type = MSG_QUIT;
-                write(fd_to_bb_2, &positions, sizeof(positions));
-
-                write_log("application.log", "SOCKET_MANAGER", "INFO", "Socket Manager process terminated successfully", log_sem);
-                close(sockfd);
-                exit(EXIT_SUCCESS);
-            }
-            else if(strncmp(buffer_input, "drone", 5) == 0){
-                // Receiving new drone position from server
-
-                // Read drone position
-                memset(buffer_input, 0, 256);
-
+            for(int i = 0; i < 2;i++){
+                
+                memset(buffer_input, 0, sizeof(buffer_input));
                 if(read_line(sockfd, buffer_input, sizeof(buffer_input)) <= 0) {
-                    error(-1, sockfd, "Error line 347 reading from socket", log_sem);
+                    error(-1, sockfd, "Error line 317 reading from socket", log_sem);
                     exit(EXIT_FAILURE);
                 }
 
                 write_log("application.log", "SOCKET_MANAGER", "INFO", buffer_input, log_sem);
 
-                int srv_x = 0, srv_y = 0;
-                sscanf(buffer_input, "%d, %d", &srv_x, &srv_y); // x, y on the wire
-                positions.drone_x = srv_x;
-                //positions.drone_y = wind_H - srv_y; // Convert back from bottom-left to top-left origin
-                positions.drone_y = srv_y; // Convert back from bottom-left to top-left origin
-                positions.type = MSG_NPOS; // Signaling blackboard that this is drone position
-
-                write(fd_to_bb_2, &positions, sizeof(positions)); // Sending drone position to blackboard
-
-                // Send acknowledgment to server
-                memset(buffer_output, 0, sizeof(buffer_output));
-                snprintf(buffer_output, sizeof(buffer_output), "dok");
-                n = write(sockfd, buffer_output, strlen(buffer_output) + 1); // Include null terminator to ensure server can detect end of message
-                if (n < 0) {
-                    perror("SOCKET_MANAGER writing acknowledgment to socket");
-                    error(-1, sockfd, "Error writing acknowledgment to socket", log_sem);
-                }
-
-                write_log("application.log", "SOCKET_MANAGER", "INFO", "Acknowledged drone position to server", log_sem);
-
-            }
-            else if(strncmp(buffer_input, "obst", 4) == 0){
-                // Sending drone position to server (seen as obstacle)
-
-                // Request drone position from blackboard
-                positions.type = MSG_NOB; // Signaling blackboard to send obstacle position
-                write(fd_to_bb_2, &positions, sizeof(positions));
-
-                // Read obstacle position from blackboard
-                read(fd_from_bb, &positions, sizeof(positions));
-
-                // Convert to virtual coordinates expected on the wire (x, y)
-                const int obs_x = positions.drone_x;
-                //const int obs_y_virtual = wind_H - positions.drone_y;
-                const int obs_y_virtual = positions.drone_y;
-
-                // Send obstacle position to server
-                memset(buffer_output, 0, sizeof(buffer_output));
-                snprintf(buffer_output, sizeof(buffer_output), "%d, %d", obs_x, obs_y_virtual);
-                n = write(sockfd, buffer_output, strlen(buffer_output) + 1); // Include null terminator to ensure server can detect end of message
-                if (n < 0) {
-                    perror("SOCKET_MANAGER writing obstacle position to socket");
-                    error(-1, sockfd, "Error writing obstacle position to socket", log_sem);
-                }
-
-                write_log("application.log", "SOCKET_MANAGER", "INFO", "Sent obstacle position to server", log_sem);
-
-                // Wait for acknowledgment from server
-                memset(buffer_input, 0, sizeof(buffer_input));
-                if(read_line(sockfd, buffer_input, sizeof(buffer_input)) <= 0) {
-                    error(-1, sockfd, "Error line 389 reading from socket", log_sem);
-                    exit(EXIT_FAILURE);
-                }
-                if(strncmp(buffer_input, "pok", 3) != 0)
-                    error(-1, sockfd, "Invalid acknowledgment for obstacle position from server", log_sem);
-
-                write_log("application.log", "SOCKET_MANAGER", "INFO", "Acknowledged obstacle position to server", log_sem);
-            }
-
-            
-            // Cheking if client application exited (close socket and exit)
-            // Non-blocking read from blackboard; ignore EAGAIN/EWOULDBLOCK to avoid stalling protocol
-            ssize_t rb = read(fd_from_bb_2, &positions, sizeof(positions));
-            if(rb == sizeof(positions)){
-                if(positions.type == MSG_QUIT){
+                if(strncmp(buffer_input, "q", 1) == 0){
                     // Quitting socket manager
+
+                    // Send acknowledgment to server
+                    memset(buffer_output, 0, sizeof(buffer_output));
+                    snprintf(buffer_output, sizeof(buffer_output), "qok");
+                    n = write(sockfd, buffer_output, strlen(buffer_output) + 1); // Include null terminator to ensure server can detect end of message
+                    if (n < 0) {
+                        perror("SOCKET_MANAGER writing acknowledgment to socket");
+                        error(-1, sockfd, "Error writing acknowledgment to socket", log_sem);
+                    }
+
+                    // Notify blackboard about termination
+                    positions.type = MSG_QUIT;
+                    write(fd_to_bb_2, &positions, sizeof(positions));
+
                     write_log("application.log", "SOCKET_MANAGER", "INFO", "Socket Manager process terminated successfully", log_sem);
                     close(sockfd);
                     exit(EXIT_SUCCESS);
                 }
+                else if(strncmp(buffer_input, "drone", 5) == 0){
+                    // Receiving new drone position from server
+
+                    // Read drone position
+                    memset(buffer_input, 0, 256);
+
+                    if(read_line(sockfd, buffer_input, sizeof(buffer_input)) <= 0) {
+                        error(-1, sockfd, "Error line 347 reading from socket", log_sem);
+                        exit(EXIT_FAILURE);
+                    }
+
+                    write_log("application.log", "SOCKET_MANAGER", "INFO", buffer_input, log_sem);
+
+                    int srv_x = 0, srv_y = 0;
+                    sscanf(buffer_input, "%d, %d", &srv_x, &srv_y); // x, y on the wire
+                    positions.drone_x = srv_x;
+                    //positions.drone_y = wind_H - srv_y; // Convert back from bottom-left to top-left origin
+                    positions.drone_y = srv_y; // Convert back from bottom-left to top-left origin
+                    positions.type = MSG_NPOS; // Signaling blackboard that this is drone position
+
+                    write(fd_to_bb_2, &positions, sizeof(positions)); // Sending drone position to blackboard
+
+                    // Send acknowledgment to server
+                    memset(buffer_output, 0, sizeof(buffer_output));
+                    snprintf(buffer_output, sizeof(buffer_output), "dok");
+                    n = write(sockfd, buffer_output, strlen(buffer_output) + 1); // Include null terminator to ensure server can detect end of message
+                    if (n < 0) {
+                        perror("SOCKET_MANAGER writing acknowledgment to socket");
+                        error(-1, sockfd, "Error writing acknowledgment to socket", log_sem);
+                    }
+
+                    write_log("application.log", "SOCKET_MANAGER", "INFO", "Acknowledged drone position to server", log_sem);
+
+                }
+                else if(strncmp(buffer_input, "obst", 4) == 0){
+                    // Sending drone position to server (seen as obstacle)
+
+                    // Request drone position from blackboard
+                    positions.type = MSG_NOB; // Signaling blackboard to send obstacle position
+                    write(fd_to_bb_2, &positions, sizeof(positions));
+
+                    // Read obstacle position from blackboard
+                    read(fd_from_bb, &positions, sizeof(positions));
+
+                    // Convert to virtual coordinates expected on the wire (x, y)
+                    const int obs_x = positions.drone_x;
+                    //const int obs_y_virtual = wind_H - positions.drone_y;
+                    const int obs_y_virtual = positions.drone_y;
+
+                    // Send obstacle position to server
+                    memset(buffer_output, 0, sizeof(buffer_output));
+                    snprintf(buffer_output, sizeof(buffer_output), "%d, %d", obs_x, obs_y_virtual);
+                    n = write(sockfd, buffer_output, strlen(buffer_output) + 1); // Include null terminator to ensure server can detect end of message
+                    if (n < 0) {
+                        perror("SOCKET_MANAGER writing obstacle position to socket");
+                        error(-1, sockfd, "Error writing obstacle position to socket", log_sem);
+                    }
+
+                    write_log("application.log", "SOCKET_MANAGER", "INFO", "Sent obstacle position to server", log_sem);
+
+                    // Wait for acknowledgment from server
+                    memset(buffer_input, 0, sizeof(buffer_input));
+                    if(read_line(sockfd, buffer_input, sizeof(buffer_input)) <= 0) {
+                        error(-1, sockfd, "Error line 389 reading from socket", log_sem);
+                        exit(EXIT_FAILURE);
+                    }
+                    if(strncmp(buffer_input, "pok", 3) != 0)
+                        error(-1, sockfd, "Invalid acknowledgment for obstacle position from server", log_sem);
+
+                    write_log("application.log", "SOCKET_MANAGER", "INFO", "Acknowledged obstacle position to server", log_sem);
+                }
+
+                
+                // Cheking if client application exited (close socket and exit)
+                // Non-blocking read from blackboard; ignore EAGAIN/EWOULDBLOCK to avoid stalling protocol
+                ssize_t rb = read(fd_from_bb_2, &positions, sizeof(positions));
+                if(rb == sizeof(positions)){
+                    if(positions.type == MSG_QUIT){
+                        // Quitting socket manager
+                        write_log("application.log", "SOCKET_MANAGER", "INFO", "Socket Manager process terminated successfully", log_sem);
+                        close(sockfd);
+                        exit(EXIT_SUCCESS);
+                    }
+                }
+                else if(rb == -1 && errno != EAGAIN && errno != EWOULDBLOCK){
+                    perror("SOCKET_MANAGER reading quit from blackboard");
+                }
+    
             }
-            else if(rb == -1 && errno != EAGAIN && errno != EWOULDBLOCK){
-                perror("SOCKET_MANAGER reading quit from blackboard");
-            }
-            
+                       
         }
         close(sockfd);
     }
