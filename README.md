@@ -1,6 +1,9 @@
-# 2nd ASSIGNMENT of ADVANCED ROBOT PROGRAMMING
+# 3rd ASSIGNMENT of ADVANCED ROBOT PROGRAMMING
 
-This project consists of a **multi-process application** that implements an **interactive drone operation simulator**.
+This project consists of a **multi-process application** that implements an **interactive drone operation simulator**. The application can be executed either in **standa-alone mode** or in **networked mode** through client-server connection. The communication is implemented using a socket channel: before the startup, the application asks for the necessary information to establish the connection, such as the server IP address in case of the client side, and the communication port used by both server and client.
+
+---
+## Stand-alone mode
 
 At startup, the software spawns:
 - a **character window** using the **ncurses** library,
@@ -25,6 +28,31 @@ This window also displays:
 
 The last window displays various messages communicating whether every process has sent its heartbeat to the watchdog in time, it missed the timer deadline of **3 seconds**, or it recovered, after timing out.
 
+## Networked mode
+
+The application works differently wether it is executed as client or server.
+First, the server creates the socket channel, and waits for the connection of the client. Once the connection has been established, the server provides the dimensions of the field (**character window**), which the client side has to recreate. Afterwards, the two ends keep exchanging the position of their respective drones, updating their local representation of the game field. The client drone functions as an obstacle, repelling the server drone whenever it enters its repulsive range, thus, the goal of the server drone is to escape the moving obstacle, avoiding to be cornered.
+
+At startup, the software creates:
+- a **character window** using the **ncurses** library,
+- a **smaller input window** used to control the drone movement.
+In this modality the watchdog process, as the obstacles and targets, are disabled to focus on the communication between the two different applications.
+
+The main window displays a boxed area inside which the drone can move. Inside the field there are:
+- the **drone**, initially positioned slightly on the left relaitve to the center (blue `+`).
+
+The main goal is to make the drone reach all targets **in sequence**, while avoiding the obstacles.  
+Obstacles apply a **repulsive force** to the drone when it gets too close. The window borders also exert a repulsive force, simulating **geo-fences** used in real drone operations. The drone can move freely only inside the **red rectangle**.
+
+Obstacles despawn and respawn randomly approximately every **10 seconds**, while targets are regenerated only after **all of them have been reached**.
+
+The second window is used to input commands for the drone movement. Eight directional keys apply forces to the drone, moving it in the corresponding direction. Two additional commands allow the user to **stop the drone** or **quit the application**.
+
+This window also displays:
+- the **current score**, represented by the number of targets reached (which resets after all targets are collected),
+- the **current drone position**, expressed in characters.
+
+The last window displays various messages communicating whether every process has sent its heartbeat to the watchdog in time, it missed the timer deadline of **3 seconds**, or it recovered, after timing out.
 ---
 
 ## Processes
