@@ -30,7 +30,7 @@ The last window displays various messages communicating whether every process ha
 
 ## Networked mode
 
-The application works differently wether it is executed as client or server.
+The application works differently whether it is executed as client or server.
 The communication between the two sides follows a precise deterministic protocol, implementing an acknowledgment mechanic for each message sent.
 First, the server creates the socket channel, and waits for the connection of the client. Once the connection has been established, the server provides the dimensions of the field (**character window**), which the client side has to recreate. Afterwards, the two ends keep exchanging the position of their respective drones, updating their local representation of the game field. The client drone functions as an obstacle, repelling the server drone whenever it enters its repulsive range. Indeed, the goal of the server drone is to escape the moving obstacle, avoiding to be cornered.
 
@@ -112,7 +112,9 @@ The input window also displays the **current drone position**, expressed in char
   High-level graphical representation of the project structure, including process connections via pipes.
 
 - **application.log**  
-  Log file generated at runtime containing information about process start/termination, pressed keys, targets reached, obstacle respawns, repulsion effects, warnings, and errors.
+  Log file generated at runtime containing:
+  - in **stand-alone mode** information about process start/termination, pressed keys, targets reached, obstacle respawns, repulsion effects, warnings, and errors.
+  - in **networked mode** information about process start/termination, status communication protocol, messages exchanged through socket, pressed keys, warnings, and errors.
 
 - **watchdog.log**  
   Log file used to inspect process communication with the watchdog (timeouts and recoveries).
@@ -138,6 +140,7 @@ The input window also displays the **current drone position**, expressed in char
 - Install ncurses library:
   ```bash
   sudo apt install libncurses-dev
+  ```
 
 ---
 
@@ -154,6 +157,8 @@ The input window also displays the **current drone position**, expressed in char
 ## Instructions to Use
 
 For a better experience, use half (or two thirds) of your screen for the character window and the remaining space for the input window.
+At the startup, the application asks whether the user wants to execute it in **stand-alone mode** or in **networked mode**. In case of the second choice, if the application is run as client, then the user will have to provide the IP address of the server along with the communication port chosen. Instead, if executed as server, only the port number will be necessary.
+In any case the terminal will communicate whether the connection has been established correctly or not. To further analyze eventual problems it is suggested to consult the messages on the **application.log** file.
 
 ### Controls
 
@@ -166,7 +171,8 @@ For a better experience, use half (or two thirds) of your screen for the charact
 - s -> moves drone left  
 - f -> moves drone right  
 - d -> stops the drone  
-- q -> quit the application  
+- q -> quit the application
+If in **networked mode** the termination is carried out always by the server, which closes both its and the client's windows.
 
 ---
 
@@ -257,10 +263,8 @@ Functions are implemented in the file "functions.c" and shared across programs u
 - read_line
   Helper function to read message received on the socket character by character
 
----
-
-### Tested with
-
+- coordinate_conversions
+  Converts the coordinate from the local reference system (origin at the top-left corner) to the virtual one (origin at the bottom-left corner)
 
 ---
 
