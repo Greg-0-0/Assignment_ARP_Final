@@ -27,7 +27,6 @@ int main(int argc, char* argv[]) {
     char* server_ip = argv[6]; // Server IP address (only for client)
     int fd_from_bb_2 = atoi(argv[7]); // Reads from blackboardclient to exit correctly (only for client)
     BlackboardMsg positions; positions.type = MSG_NAN;
-    int wind_H = 0; // Used to go from local coordinate system (origin in top_left corner) to virtual coordinate system (origin in bottom_left corner) and vice versa
     int first_time = 1; // Used by server to give the user the possibility to either connect or terminate
     RotationCase case_type = ROT_0_DEGREES; // Used to manage different coordinate conversion cases between local and virtual coordinates (e.g., for server drone seen as obstacle from client)
     int origin_x = 0, origin_y = 0; // Used to manage coordinate conversion with different origins (e.g., for server drone seen as obstacle from client)
@@ -174,9 +173,6 @@ int main(int argc, char* argv[]) {
             char log_msg[284];
             snprintf(log_msg, sizeof(log_msg), "Sent window size to client: %s", buffer_output);
             write_log("application.log", "SOCKET_MANAGER", "INFO", log_msg, log_sem);
-
-            // Store window height for coordinate conversions
-            wind_H = positions.border_y + 7;
 
             // Wait for acknowledgment from client
             memset(buffer_input, 0, sizeof(buffer_input));
@@ -459,7 +455,6 @@ int main(int argc, char* argv[]) {
         positions.type = MSG_WSIZE;
         positions.border_x = win_w; // Width (cols)
         positions.border_y = win_h; // Height (rows)
-        wind_H = win_h; // Storing window height for coordinate conversions
         write(fd_to_bb, &positions, sizeof(positions)); // Sending window size to blackboard
 
         // ----
