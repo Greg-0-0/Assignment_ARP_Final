@@ -850,7 +850,7 @@ void send_heartbeat_if_due(int fd_watchdog, const char* process_name, sem_t *log
 
 // ------ used in socket_manager.c ------
 
-void analyze_position_n_size_and_prepare_message(BlackboardMsg positions,char* buffer_output, int wind_H){
+void analyze_position_n_size_and_prepare_message(BlackboardMsg positions, RotationCase case_type,int origin_x, int origin_y, char* buffer_output){
     if(positions.type == MSG_WSIZE) {
         // Window size sent as width, height
         const int width = positions.border_x + 7;  // Stored value is border width (cols) without margins
@@ -859,9 +859,9 @@ void analyze_position_n_size_and_prepare_message(BlackboardMsg positions,char* b
     }
     else if(positions.type == MSG_NPOS) {
         // Drone position sent as x, y (after converting y to bottom-left frame expected on the wire)
+        coordinate_conversion(&positions, case_type, 0, origin_x, origin_y); // Convert from top-left to bottom-left origin
         const int x = positions.drone_x;
-        const int y = positions.drone_y; // Convert from top-left origin to bottom-left
-        //const int y = wind_H - positions.drone_y; // Convert from top-left origin to bottom-left
+        const int y = positions.drone_y;
         snprintf(buffer_output, 256, "%d, %d", x, y);
     } 
     else {
@@ -894,4 +894,53 @@ ssize_t read_line(int fd, char *buf, size_t maxlen) {
     }
     buf[i] = '\0';
     return i;
+}
+
+void coordinate_conversion(BlackboardMsg* positions, RotationCase case_type, int conversion_flag, int origin_x, int origin_y){
+    if(conversion_flag == 0){
+        // From local to network -> convert from top-left to bottom-left origin (virtual coordinate system)
+        switch(case_type){
+            case ROT_0_DEGREES:
+                positions->drone_x = origin_y + positions->drone_x;
+                positions->drone_y = origin_x + positions->drone_y;
+                break;
+            case ROT_90_DEGREES:
+                positions->drone_x = origin_x - positions->drone_y;
+                positions->drone_y = origin_y + positions->drone_x;
+                break;
+            case ROT_NEG_90_DEGREES:
+                positions->drone_x = origin_x + positions->drone_y;
+                positions->drone_y = origin_y - positions->drone_x;
+                break;
+            case ROT_180_DEGREES:
+                positions->drone_x = origin_x - positions->drone_x;
+                positions->drone_y = origin_y - positions->drone_y;
+                break;
+            default:
+                log_error("application.log", "SOCKET_MANAGER", "Unknown rotation case for coordinate conversion", NULL);
+        }
+    }
+    else{
+        // From network to local -> convert from bottom-left (virtual coordinate system) to top-left origin
+        switch(case_type){
+            case ROT_0_DEGREES:
+                positions->drone_x = positions->drone_x - origin_x;
+                positions->drone_y = positions->drone_y - origin_y;
+                break;
+            case ROT_90_DEGREES:
+                positions->drone_x = positions->drone_y - origin_y;
+                positions->drone_y = origin_x - positions->drone_x;
+                break;
+            case ROT_NEG_90_DEGREES:
+                positions->drone_x = origin_y - positions->drone_y;
+                positions->drone_y = positions->drone_x - origin_x;
+                break;
+            case ROT_180_DEGREES:
+                positions->drone_x = origin_x - positions->drone_x;
+                positions->drone_y = origin_y - positions->drone_y;
+                break;
+            default:
+                log_error("application.log", "SOCKET_MANAGER", "Unknown rotation case for coordinate conversion", NULL);
+        }
+    }
 }

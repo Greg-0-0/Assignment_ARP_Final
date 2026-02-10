@@ -29,6 +29,8 @@ int main(int argc, char* argv[]) {
     BlackboardMsg positions; positions.type = MSG_NAN;
     int wind_H = 0; // Used to go from local coordinate system (origin in top_left corner) to virtual coordinate system (origin in bottom_left corner) and vice versa
     int first_time = 1; // Used by server to give the user the possibility to either connect or terminate
+    RotationCase case_type = ROT_0_DEGREES; // Used to manage different coordinate conversion cases between local and virtual coordinates (e.g., for server drone seen as obstacle from client)
+    int origin_x = 0, origin_y = 0; // Used to manage coordinate conversion with different origins (e.g., for server drone seen as obstacle from client)
 
     if(server_client_flag == 1){
         // Server mode
@@ -162,7 +164,7 @@ int main(int argc, char* argv[]) {
             // Send window size
             read(fd_from_bb, &positions, sizeof(positions)); // Retrieving window size from blackboard
             memset(buffer_output, 0, sizeof(buffer_output));
-            analyze_position_n_size_and_prepare_message(positions, buffer_output, -1); // wind_H not needed here
+            analyze_position_n_size_and_prepare_message(positions, case_type, origin_x, origin_y, buffer_output);
             n = write(newsockfd, buffer_output, strlen(buffer_output) + 1); // Include null terminator to ensure client can detect end of message
             if (n < 0) {
                 perror("SOCKET_MANAGER writing window size to socket");
@@ -259,7 +261,7 @@ int main(int argc, char* argv[]) {
 
                 // Send new drone position
                 memset(buffer_output, 0, sizeof(buffer_output));
-                analyze_position_n_size_and_prepare_message(positions, buffer_output, wind_H);
+                analyze_position_n_size_and_prepare_message(positions, case_type, origin_x, origin_y, buffer_output);;
 
                 n = write(newsockfd, buffer_output, strlen(buffer_output) + 1); // Include null terminator to ensure client can detect end of message
                 if (n < 0) {
@@ -317,7 +319,8 @@ int main(int argc, char* argv[]) {
                 sscanf(buffer_input, "%d, %d", &obs_x, &obs_y); // x, y on the wire
                 positions.drone_x = obs_x;
                 //positions.drone_y = wind_H - obs_y; // Convert back from bottom-left to top-left origin
-                positions.drone_y = obs_y; // Convert back from bottom-left to top-left origin
+                positions.drone_y = obs_y;
+                coordinate_conversion(&positions, case_type, 1, origin_x, origin_y); // Convert from virtual coordinates to local
                 positions.type = MSG_NPOS; // Signaling blackboard that this is an obstacle position
                 write(fd_to_bb, &positions, sizeof(positions)); // Sending obstacle position to blackboard // DEBUG: doesn't fire
 
@@ -519,7 +522,8 @@ int main(int argc, char* argv[]) {
                     sscanf(buffer_input, "%d, %d", &srv_x, &srv_y); // x, y on the wire
                     positions.drone_x = srv_x;
                     //positions.drone_y = wind_H - srv_y; // Convert back from bottom-left to top-left origin
-                    positions.drone_y = srv_y; // Convert back from bottom-left to top-left origin
+                    positions.drone_y = srv_y; 
+                    coordinate_conversion(&positions, case_type, 1, origin_x, origin_y); // Convert from virtual coordinates to local
                     positions.type = MSG_NPOS; // Signaling blackboard that this is drone position
 
                     write(fd_to_bb_2, &positions, sizeof(positions)); // Sending drone position to blackboard
@@ -550,6 +554,7 @@ int main(int argc, char* argv[]) {
                     const int obs_x = positions.drone_x;
                     //const int obs_y_virtual = wind_H - positions.drone_y;
                     const int obs_y_virtual = positions.drone_y;
+                    coordinate_conversion(&positions, case_type, 0, origin_x, origin_y); // Convert from local coordinates to virtual (bottom-left origin) coordinates
 
                     // Send obstacle position to server
                     memset(buffer_output, 0, sizeof(buffer_output));

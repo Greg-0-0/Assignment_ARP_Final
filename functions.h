@@ -40,6 +40,14 @@ typedef enum{
     MSG_WSIZE = 7
 } MsgType;
 
+// Enum to define the rotation cases for coordinate conversion between local (top-left origin) and virtual (bottom-left origin) systems
+typedef enum{
+    ROT_0_DEGREES,
+    ROT_90_DEGREES,
+    ROT_180_DEGREES,
+    ROT_NEG_90_DEGREES
+} RotationCase;
+
 // Struct to define message sent by drone to blackboard with new drone position
 typedef struct{
     MsgType type;
@@ -157,12 +165,15 @@ void send_heartbeat_if_due(int fd_watchdog, const char* process_name, sem_t *log
 // ------ socket_manager helpers (used by socket_manager.c) ------
 
 // Function to analyze dron position/window size and prepare fixed message to send to client
-void analyze_position_n_size_and_prepare_message(BlackboardMsg positions, char* buffer_output, int wind_H);
+void analyze_position_n_size_and_prepare_message(BlackboardMsg positions, RotationCase case_type, int origin_x, int origin_y, char* buffer_output);
 
 // Helper function to print error message, close sockets and exit
 void error(int newsockfd, int sockfd, const char *msg, sem_t *log_sem);
 
 // Helper function to read a line (ending with '\n' or '\0') from the socket, this avoids mixing messages
 ssize_t read_line(int fd, char *buf, size_t maxlen);
+
+// Function to convert coordinates between local (top-left origin) and virtual (bottom-left origin) systems or viceversa, applying rotation if needed
+void coordinate_conversion(BlackboardMsg* positions, RotationCase case_type, int conversion_flag, int origin_x, int origin_y);
 
 #endif
