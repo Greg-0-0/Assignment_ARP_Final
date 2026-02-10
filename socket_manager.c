@@ -318,7 +318,6 @@ int main(int argc, char* argv[]) {
                 int obs_x = 0, obs_y = 0;
                 sscanf(buffer_input, "%d, %d", &obs_x, &obs_y); // x, y on the wire
                 positions.drone_x = obs_x;
-                //positions.drone_y = wind_H - obs_y; // Convert back from bottom-left to top-left origin
                 positions.drone_y = obs_y;
                 coordinate_conversion(&positions, case_type, 1, origin_x, origin_y); // Convert from virtual coordinates to local
                 positions.type = MSG_NPOS; // Signaling blackboard that this is an obstacle position
@@ -521,7 +520,6 @@ int main(int argc, char* argv[]) {
                     int srv_x = 0, srv_y = 0;
                     sscanf(buffer_input, "%d, %d", &srv_x, &srv_y); // x, y on the wire
                     positions.drone_x = srv_x;
-                    //positions.drone_y = wind_H - srv_y; // Convert back from bottom-left to top-left origin
                     positions.drone_y = srv_y; 
                     coordinate_conversion(&positions, case_type, 1, origin_x, origin_y); // Convert from virtual coordinates to local
                     positions.type = MSG_NPOS; // Signaling blackboard that this is drone position
@@ -552,7 +550,6 @@ int main(int argc, char* argv[]) {
 
                     // Convert to virtual coordinates expected on the wire (x, y)
                     const int obs_x = positions.drone_x;
-                    //const int obs_y_virtual = wind_H - positions.drone_y;
                     const int obs_y_virtual = positions.drone_y;
                     coordinate_conversion(&positions, case_type, 0, origin_x, origin_y); // Convert from local coordinates to virtual (bottom-left origin) coordinates
 
