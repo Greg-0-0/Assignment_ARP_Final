@@ -28,7 +28,7 @@
 #define N_OBS 10
 #define N_TARGETS 9 
 
-// Enum variable to classify every type of message sent via pipe
+// (functions.h) Enum variable to classify every type of message sent via pipe
 typedef enum{
     MSG_QUIT = 0,
     MSG_POS = 1,
@@ -40,7 +40,7 @@ typedef enum{
     MSG_WSIZE = 7
 } MsgType;
 
-// Enum to define the rotation cases for coordinate conversion between local (top-left origin) and virtual (bottom-left origin) systems
+// (functions.h) Enum to define the rotation cases for coordinate conversion between local (top-left origin) and virtual (bottom-left origin) systems
 typedef enum{
     ROT_0_DEGREES,
     ROT_90_DEGREES,
@@ -48,14 +48,14 @@ typedef enum{
     ROT_NEG_90_DEGREES
 } RotationCase;
 
-// Struct to define message sent by drone to blackboard with new drone position
+// (functions.h) Struct to define message sent by drone to blackboard with new drone position
 typedef struct{
     MsgType type;
     int new_drone_y;
     int new_drone_x;
 } DroneMsg;
 
-// Struct used by blackboard to communicate to drone program the border, obstacles and current drone position
+// (functions.h) Struct used by blackboard to communicate to drone program the border, obstacles and current drone position
 typedef struct{
         MsgType type;
         int drone_y;

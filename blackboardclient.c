@@ -242,7 +242,7 @@ int main(int argc, char* argv[]) {
                 wattron(win, COLOR_PAIR(4));
                 mvwprintw(win,positions.drone_y,positions.drone_x,"+"); // Drawing drone at new position
                 wattroff(win, COLOR_PAIR(4));
-                draw_rect(win,6,6,H-7,W-7,1);
+                //draw_rect(win,6,6,H-7,W-7,1);
                 wrefresh(win);
 
                 // Sending new position and score to input manager for visual update
