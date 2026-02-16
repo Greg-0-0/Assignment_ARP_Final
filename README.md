@@ -268,6 +268,13 @@ Functions are implemented in the file "functions.c" and shared across programs u
 
 ---
 
+## Testing info
+Tested on 16/02/26 with:
+1. Tozzani Michele
+2. Tassoni Luca (SONDER group)
+3. Masaniello Chiara
+
+
 ## Author
 
 Daneri Gregorio
